@@ -1,49 +1,83 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import useSWRInfinite from 'swr/infinite';
 import { supabase } from '@/lib/supabase';
 import type { Version } from '@/lib/types';
 import { useActivities } from './useActivities';
 
+const VERSIONS_PER_PAGE = 10;
+
+interface VersionsPage {
+    versions: Version[];
+    hasMore: boolean;
+}
+
+async function fetchVersionsPage(projectId: string, page: number): Promise<VersionsPage> {
+    const from = page * VERSIONS_PER_PAGE;
+    const to = from + VERSIONS_PER_PAGE - 1;
+
+    const { data, error, count } = await supabase
+        .from('versions')
+        .select('*', { count: 'exact' })
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+    if (error) throw error;
+
+    const versions = (data || []).map((v) => ({
+        id: v.id,
+        projectId: v.project_id,
+        name: v.name,
+        isActive: v.is_active,
+        changelog: v.changelog,
+        createdAt: v.created_at,
+    }));
+
+    const totalLoaded = from + versions.length;
+    const hasMore = count ? totalLoaded < count : false;
+
+    return { versions, hasMore };
+}
+
 export function useVersions(projectId: string | null) {
-    const [versions, setVersions] = useState<Version[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const { logActivity } = useActivities(projectId);
 
-    const fetchVersions = useCallback(async () => {
-        if (!projectId) {
-            setVersions([]);
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('versions')
-            .select('*')
-            .eq('project_id', projectId)
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            setError(error.message);
-        } else {
-            setVersions(
-                data.map((v) => ({
-                    id: v.id,
-                    projectId: v.project_id,
-                    name: v.name,
-                    isActive: v.is_active,
-                    createdAt: v.created_at,
-                }))
-            );
-        }
-        setLoading(false);
+    const getKey = useCallback((pageIndex: number, previousPageData: VersionsPage | null) => {
+        if (!projectId) return null;
+        if (previousPageData && !previousPageData.hasMore) return null;
+        return ['versions', projectId, pageIndex];
     }, [projectId]);
 
-    useEffect(() => {
-        fetchVersions();
-    }, [fetchVersions]);
+    const fetcher = useCallback(async ([, projectId, pageIndex]: [string, string, number]) => {
+        return fetchVersionsPage(projectId, pageIndex);
+    }, []);
+
+    const {
+        data: pages,
+        size,
+        setSize,
+        mutate,
+        isLoading,
+        isValidating,
+    } = useSWRInfinite<VersionsPage>(getKey, fetcher, {
+        revalidateOnFocus: false,
+        revalidateFirstPage: false,
+        dedupingInterval: 60000,
+        persistSize: true,
+    });
+
+    // Flatten pages into single array
+    const versions = pages?.flatMap(page => page.versions) || [];
+    const hasMore = pages && pages.length > 0 ? pages[pages.length - 1].hasMore : false;
+    const loading = isLoading;
+
+    const loadMore = useCallback(() => {
+        if (!isValidating && hasMore) {
+            setSize(size + 1);
+        }
+    }, [setSize, size, isValidating, hasMore]);
 
     const createVersion = async (
         name: string,
@@ -65,7 +99,7 @@ export function useVersions(projectId: string | null) {
             .single();
 
         if (error) {
-            setError(error.message);
+            console.error('Error creating version:', error.message);
             return null;
         }
 
@@ -86,10 +120,8 @@ export function useVersions(projectId: string | null) {
             createdAt: data.created_at,
         };
 
-        setVersions((prev) => [
-            newVersion,
-            ...prev.map((v) => ({ ...v, isActive: false })),
-        ]);
+        // Revalidate cache to include new version
+        mutate();
 
         logActivity('create_version', 'version', data.id, `Created version: ${name}`);
 
@@ -112,13 +144,12 @@ export function useVersions(projectId: string | null) {
             .eq('id', id);
 
         if (error) {
-            setError(error.message);
+            console.error('Error setting active version:', error.message);
             return false;
         }
 
-        setVersions((prev) =>
-            prev.map((v) => ({ ...v, isActive: v.id === id }))
-        );
+        // Revalidate to reflect changes
+        mutate();
         return true;
     };
 
@@ -126,19 +157,20 @@ export function useVersions(projectId: string | null) {
         const { error } = await supabase.from('versions').delete().eq('id', id);
 
         if (error) {
-            setError(error.message);
+            console.error('Error deleting version:', error.message);
             return false;
         }
 
-        setVersions((prev) => prev.filter((v) => v.id !== id));
+        mutate();
         logActivity('delete_version', 'version', id, 'Deleted version');
         return true;
     };
 
     const updateVersion = async (id: string, updates: Partial<Version>): Promise<boolean> => {
-        const dbUpdates: any = {};
+        const dbUpdates: Record<string, unknown> = {};
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+        if (updates.changelog !== undefined) dbUpdates.changelog = updates.changelog;
 
         const { error } = await supabase
             .from('versions')
@@ -146,14 +178,16 @@ export function useVersions(projectId: string | null) {
             .eq('id', id);
 
         if (error) {
-            setError(error.message);
+            console.error('Error updating version:', error.message);
             return false;
         }
 
-        setVersions(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+        mutate();
 
         if (updates.isActive === false) {
             logActivity('release_version', 'version', id, `Released version`);
+        } else if (updates.changelog) {
+            logActivity('save_changelog', 'version', id, `Saved changelog for version`);
         } else if (updates.name) {
             logActivity('update_version', 'version', id, `Updated version name to ${updates.name}`);
         }
@@ -168,12 +202,14 @@ export function useVersions(projectId: string | null) {
     return {
         versions,
         loading,
-        error,
+        isValidating,
+        hasMore,
+        loadMore,
         createVersion,
         setActiveVersion,
         updateVersion,
         deleteVersion,
         getActiveVersion,
-        refetch: fetchVersions,
+        refetch: mutate,
     };
 }

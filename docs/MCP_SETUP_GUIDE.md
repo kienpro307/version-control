@@ -1,62 +1,126 @@
-# Supabase MCP Server Setup Guide
+# Supabase MCP Server - Complete Setup Guide
+
+> **Last Updated**: 2026-02-03
+> **Status**: ✅ Production Ready
+
+---
 
 ## 1. Overview
-Để Antigravity AI Agent có thể truy cập trực tiếp vào database Supabase của bạn, chúng ta cần deploy một MCP Server đóng vai trò cầu nối.
 
-Model: `@supabase/mcp-server-supabase`
-Hosting: Cloudflare Workers (Miễn phí, nhanh, secure)
+MCP Server cho phép Antigravity AI Agent truy cập trực tiếp database Supabase.
 
-## 2. Prerequisites
-- Node.js installed
-- Cloudflare Account (Free plan ok)
-- Supabase Project URL & Anon Key
+| Item | Value |
+|------|-------|
+| **Hosting** | Cloudflare Workers |
+| **URL** | `https://my-version-manager-mcp.kien307.workers.dev` |
+| **Protocol** | JSON-RPC 2.0 |
 
-## 3. Deployment Steps
+---
 
-### Step 3.1: Create Worker Project
-```bash
-npm create cloudflare@latest mcp-supabase-bridge -- --template worker-typescript
-cd mcp-supabase-bridge
-```
+## 2. Available Tools
 
-### Step 3.2: Install Dependencies
-```bash
-npm install @supabase/supabase-js @modelcontextprotocol/server-cloudflare
-```
+| Tool | Description | Required Params |
+|------|-------------|-----------------|
+| `list_projects` | List all projects | - |
+| `get_tasks` | Get pending tasks for a project | `projectId` |
+| `read_context_dump` | Read latest context dump | `projectId` |
 
-### Step 3.3: Configure Worker (`src/index.ts`)
-*(Sẽ cung cấp code trong file `src/index.ts`)*
+---
 
-### Step 3.4: Deploy
-```bash
-npx wrangler deploy
-```
+## 3. Configure Antigravity
 
-### 3. Verification
-Your MCP Server is now live at:
-`https://my-version-manager-mcp.kien307.workers.dev`
+### Option A: HTTP Transport (Recommended)
 
-You can test it by sending a POST request to `https://my-version-manager-mcp.kien307.workers.dev/` with:
-```json
-{
-    "jsonrpc": "2.0",
-    "method": "tools/list",
-    "id": 1
-}
-```
+Add to `~/.gemini/settings.json`:
 
-### Step 3.5: Configure Antigravity
-Add to `~/.gemini/antigravity/mcp_settings.json`:
 ```json
 {
   "mcpServers": {
-    "supabase-bridge": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/client-sse", "https://your-worker.workers.dev/sse"]
+    "version-manager": {
+      "url": "https://my-version-manager-mcp.kien307.workers.dev",
+      "transport": "http"
     }
   }
 }
 ```
 
-## 4. MCP Server Implementation Code
-(See `docs/MCP_SERVER_CODE.md`)
+### Option B: SSE Transport
+
+```json
+{
+  "mcpServers": {
+    "version-manager": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-proxy", "https://my-version-manager-mcp.kien307.workers.dev"]
+    }
+  }
+}
+```
+
+---
+
+## 4. Test Connection
+
+### 4.1 List Tools
+```bash
+curl -X POST https://my-version-manager-mcp.kien307.workers.dev/ \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/list", "id": 1}'
+```
+
+**Expected Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {"name": "list_projects", "description": "List all projects", ...},
+      {"name": "get_tasks", ...},
+      {"name": "read_context_dump", ...}
+    ]
+  }
+}
+```
+
+### 4.2 Call a Tool
+```bash
+curl -X POST https://my-version-manager-mcp.kien307.workers.dev/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {"name": "list_projects", "arguments": {}},
+    "id": 2
+  }'
+```
+
+---
+
+## 5. Deployment (For Updates)
+
+```bash
+cd mcp-server
+npm install
+npx wrangler secret put SUPABASE_URL
+npx wrangler secret put SUPABASE_KEY
+npx wrangler deploy
+```
+
+---
+
+## 6. Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `supabaseUrl is required` | Set secrets via `wrangler secret put` |
+| Connection timeout | Check Cloudflare Workers status |
+| 404 response | Ensure using POST method |
+
+---
+
+## 7. Security Notes
+
+- MCP Server uses Supabase **anon key** (safe for client-side)
+- RLS policies control data access
+- No sensitive data exposed via MCP

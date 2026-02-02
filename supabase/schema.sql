@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS versions (
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   is_active BOOLEAN DEFAULT false,
+  changelog TEXT,                    -- Stored changelog content
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

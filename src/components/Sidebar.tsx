@@ -17,7 +17,8 @@ import {
     Search,
     Pencil,
     Trash2,
-    MoreHorizontal
+    MoreHorizontal,
+    Building2
 } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -43,6 +44,7 @@ interface SidebarProps {
     onUpdateProject: (id: string, name: string) => Promise<boolean>;
     onDeleteProject: (id: string) => Promise<boolean>;
     onOpenActivity: () => void;
+    onOpenWorkflow?: () => void;
     width?: number;
     setWidth?: (w: number) => void;
 }
@@ -73,6 +75,7 @@ export default function Sidebar({
     onUpdateProject,
     onDeleteProject,
     onOpenActivity,
+    onOpenWorkflow,
     width = 256,
     setWidth
 }: SidebarProps) {
@@ -442,6 +445,12 @@ export default function Sidebar({
 
                 {/* Footer */}
                 <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+                    {onOpenWorkflow && (
+                        <button onClick={onOpenWorkflow} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-all mb-1">
+                            <Building2 className="w-4 h-4" />
+                            <span>Daily Workflow</span>
+                        </button>
+                    )}
                     <button onClick={onOpenActivity} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-all"><Activity className="w-4 h-4" /><span>Activity</span></button>
                     <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-all"><Settings className="w-4 h-4" /><span>Settings</span></button>
                 </div>

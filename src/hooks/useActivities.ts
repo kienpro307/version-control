@@ -67,6 +67,18 @@ export function useActivities(projectId: string | null) {
         }
     };
 
+    const updateActivity = async (activityId: string, updates: { diff_summary?: string }) => {
+        const { error } = await supabase
+            .from('activities')
+            .update(updates)
+            .eq('id', activityId);
+
+        if (!error) {
+            fetchActivities();
+        }
+        return { error };
+    };
+
     useEffect(() => {
         fetchActivities();
     }, [fetchActivities]);
@@ -75,6 +87,7 @@ export function useActivities(projectId: string | null) {
         activities,
         loading,
         fetchActivities,
-        logActivity
+        logActivity,
+        updateActivity
     };
 }

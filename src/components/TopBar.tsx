@@ -1,15 +1,16 @@
 'use client';
 
-import { Search, Bell, Plus, User, Brain } from 'lucide-react';
-import { useState } from 'react';
+import { Search, Bell, Plus, User, Brain, Building2, Home } from 'lucide-react';
 
 interface TopBarProps {
     onSearch: (query: string) => void;
     searchQuery: string;
     onContextDump?: () => void;
+    onOpenWorkflow?: (location: 'office' | 'home') => void;
+    currentWorkspace?: 'office' | 'home';
 }
 
-export default function TopBar({ onSearch, searchQuery, onContextDump }: TopBarProps) {
+export default function TopBar({ onSearch, searchQuery, onContextDump, onOpenWorkflow, currentWorkspace }: TopBarProps) {
     return (
         <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6 shadow-sm/50">
             {/* Search Bar */}
@@ -32,6 +33,34 @@ export default function TopBar({ onSearch, searchQuery, onContextDump }: TopBarP
 
             {/* Right Actions */}
             <div className="flex items-center gap-2 ml-4">
+                {/* Workflow Buttons */}
+                {onOpenWorkflow && (
+                    <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+                        <button
+                            onClick={() => onOpenWorkflow('office')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${currentWorkspace === 'office'
+                                    ? 'bg-blue-500 text-white shadow-sm'
+                                    : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                                }`}
+                            title="Office Workflow"
+                        >
+                            <Building2 size={14} />
+                            <span>Office</span>
+                        </button>
+                        <button
+                            onClick={() => onOpenWorkflow('home')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${currentWorkspace === 'home'
+                                    ? 'bg-amber-500 text-white shadow-sm'
+                                    : 'text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                                }`}
+                            title="Home Workflow"
+                        >
+                            <Home size={14} />
+                            <span>Home</span>
+                        </button>
+                    </div>
+                )}
+
                 {/* Context Dump Button */}
                 {onContextDump && (
                     <button
@@ -50,13 +79,9 @@ export default function TopBar({ onSearch, searchQuery, onContextDump }: TopBarP
                     <span>New</span>
                 </button>
 
-
-
                 <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
 
                 {/* Notifications */}
-
-
                 <button className="relative p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                     <Bell size={20} />
                     <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
@@ -73,4 +98,3 @@ export default function TopBar({ onSearch, searchQuery, onContextDump }: TopBarP
         </header>
     );
 }
-

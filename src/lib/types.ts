@@ -9,6 +9,7 @@ export interface Version {
     projectId: string;
     name: string;
     isActive: boolean;
+    changelog?: string;
     createdAt: string;
 }
 

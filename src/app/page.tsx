@@ -11,6 +11,7 @@ import ChangelogModal from '@/components/ChangelogModal';
 import ActivityDrawer from '@/components/ActivityDrawer';
 import ContextDumpModal from '@/components/ContextDumpModal';
 import ContextBanner from '@/components/ContextBanner';
+import WorkflowPanel from '@/components/WorkflowPanel';
 import {
   useProjects,
   useVersions,
@@ -65,7 +66,10 @@ export default function Home() {
     updateVersion: apiUpdateVersion,
     deleteVersion: apiDeleteVersion,
     setActiveVersion: apiSetActiveVersion,
-    loading: versionsLoading
+    loading: versionsLoading,
+    hasMore: hasMoreVersions,
+    loadMore: loadMoreVersions,
+    isValidating: versionsValidating,
   } = useVersions(selectedProjectId || null);
   const {
     tasks,
@@ -77,7 +81,7 @@ export default function Home() {
     moveTask: apiMoveTask,
     updateTaskDetails: apiUpdateTaskDetails,
   } = useTasks(selectedProjectId || null);
-  const { activities, loading: activitiesLoading } = useActivities(selectedProjectId || null);
+  const { activities, loading: activitiesLoading, updateActivity } = useActivities(selectedProjectId || null);
   const { latestDump, createContextDump, markAsRead, getUnreadDump } = useContextDumps(selectedProjectId || null);
 
   // --- UI State ---
@@ -88,13 +92,13 @@ export default function Home() {
   const [showAddProject, setShowAddProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [expandedVersions, setExpandedVersions] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [changelogVersion, setChangelogVersion] = useState<Version | null>(null);
   const [showContextDumpModal, setShowContextDumpModal] = useState(false);
+  const [showWorkflowPanel, setShowWorkflowPanel] = useState(false);
+  const [workflowLocation, setWorkflowLocation] = useState<'office' | 'home'>('office');
 
   // Bulk Actions State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -129,14 +133,6 @@ export default function Home() {
       apiUpdateLastProject(selectedProjectId);
     }
   }, [selectedProjectId]);
-
-  // 3. Auto-expand active versions
-  useEffect(() => {
-    const activeVersionIds = versions
-      .filter(v => v.isActive)
-      .map(v => v.id);
-    setExpandedVersions(new Set([...activeVersionIds, 'unassigned']));
-  }, [versions, selectedProjectId]); // Re-run when versions change (e.g. after fetch)
 
   // 4. Keyboard shortcuts
   useEffect(() => {
@@ -217,16 +213,6 @@ export default function Home() {
     });
   }, [filteredVersions, tasks, searchQuery, tasksByVersion]);
 
-  // Auto-expand on search
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const allVersionIds = displayVersions.map(v => v.id);
-      setExpandedVersions(new Set([...allVersionIds, 'unassigned']));
-    }
-  }, [searchQuery, displayVersions]);
-
-  // const selectedProject = projects.find(p => p.id === selectedProjectId); // Moved down
-
   // Stats
   const stats = useMemo(() => {
     // Tasks from hook are already filtered by selectedProjectId
@@ -245,15 +231,6 @@ export default function Home() {
   }, [tasks, versions]);
 
   // --- Actions ---
-
-  const toggleVersion = (versionId: string) => {
-    setExpandedVersions(prev => {
-      const next = new Set(prev);
-      if (next.has(versionId)) next.delete(versionId);
-      else next.add(versionId);
-      return next;
-    });
-  };
 
   const handleSelectProject = (id: string) => {
     setSelectedProjectId(id);
@@ -279,7 +256,6 @@ export default function Home() {
   const handleCreateVersion = async (name: string, migratePending: boolean) => {
     const newVersion = await apiCreateVersion(name, migratePending);
     if (newVersion) {
-      setExpandedVersions(prev => new Set([...prev, newVersion.id]));
       setShowVersionModal(false);
     }
   };
@@ -434,6 +410,10 @@ export default function Home() {
         onUpdateProject={apiUpdateProject}
         onDeleteProject={apiDeleteProject}
         onOpenActivity={() => setShowActivityDrawer(true)}
+        onOpenWorkflow={() => {
+          setWorkflowLocation('office');
+          setShowWorkflowPanel(true);
+        }}
         width={sidebarWidth}
         setWidth={setSidebarWidth}
       />
@@ -584,26 +564,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* View Toggle & Content */}
-          <div className="flex items-center justify-end mb-4 px-1">
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              >
-                List
-              </button>
-              <button
-                onClick={() => setViewMode('board')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'board' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              >
-                Board
-              </button>
-            </div>
-          </div>
-
           {/* Version Sections */}
-          <div className={viewMode === 'board' ? "flex gap-4 overflow-x-auto pb-4 items-start h-[calc(100vh-250px)]" : "space-y-4"}>
+          <div className="space-y-4">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCorners}
@@ -647,12 +609,10 @@ export default function Home() {
               )}
 
               {displayVersions.map(version => (
-                <div key={version.id} className={viewMode === 'board' ? "min-w-[320px] max-w-[320px] flex-shrink-0" : ""}>
+                <div key={version.id}>
                   <VersionSection
                     version={version}
                     tasks={tasksByVersion[version.id]?.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase())) || []}
-                    isExpanded={viewMode === 'board' ? true : expandedVersions.has(version.id)}
-                    onToggle={() => toggleVersion(version.id)}
                     onAddTask={(content: string) => handleAddTask(content, version.id)}
                     onToggleDone={apiToggleDone}
                     onUpdateTask={apiUpdateTask}
@@ -665,7 +625,6 @@ export default function Home() {
                     isSelectionMode={isSelectionMode}
                     selectedTaskIds={selectedTaskIds}
                     onToggleSelectTask={toggleTaskSelection}
-                    viewMode={viewMode}
                   />
                 </div>
               ))}
@@ -673,12 +632,10 @@ export default function Home() {
               {/* Unassigned Section */}
               {tasksByVersion.unassigned.length > 0 && (
                 (!searchQuery || tasksByVersion.unassigned.some(t => t.content.toLowerCase().includes(searchQuery.toLowerCase()))) && (
-                  <div className={viewMode === 'board' ? "min-w-[320px] max-w-[320px] flex-shrink-0" : ""}>
+                  <div>
                     <VersionSection
                       version={{ id: 'unassigned', projectId: selectedProjectId, name: 'Unassigned', isActive: false, createdAt: '' }}
                       tasks={tasksByVersion.unassigned.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase()))}
-                      isExpanded={viewMode === 'board' ? true : expandedVersions.has('unassigned')}
-                      onToggle={() => toggleVersion('unassigned')}
                       onAddTask={(content: string) => handleAddTask(content, null)}
                       onToggleDone={apiToggleDone}
                       onUpdateTask={apiUpdateTask}
@@ -688,12 +645,31 @@ export default function Home() {
                       isSelectionMode={isSelectionMode}
                       selectedTaskIds={selectedTaskIds}
                       onToggleSelectTask={toggleTaskSelection}
-                      viewMode={viewMode}
                     />
                   </div>
                 )
               )}
             </DndContext>
+
+            {/* Load More Button */}
+            {hasMoreVersions && !searchQuery && (
+              <div className="flex justify-center mt-6">
+                <button
+                  onClick={loadMoreVersions}
+                  disabled={versionsValidating}
+                  className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {versionsValidating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    'Load more versions'
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Keyboard Hints (Footer) */}
@@ -766,6 +742,7 @@ export default function Home() {
         onClose={() => setShowActivityDrawer(false)}
         activities={activities}
         loading={activitiesLoading}
+        onUpdateActivity={updateActivity}
       />
 
       {/* Changelog Modal */}
@@ -775,6 +752,10 @@ export default function Home() {
           tasks={tasksByVersion[changelogVersion.id] || []}
           onClose={() => setChangelogVersion(null)}
           onRelease={handleReleaseVersion}
+          onSaveChangelog={async (changelog) => {
+            const success = await apiUpdateVersion(changelogVersion.id, { changelog });
+            return success;
+          }}
         />
       )}
 
@@ -787,6 +768,27 @@ export default function Home() {
           onClose={() => setShowContextDumpModal(false)}
         />
       )}
+
+      {/* Workflow Panel */}
+      <WorkflowPanel
+        isOpen={showWorkflowPanel}
+        onClose={() => setShowWorkflowPanel(false)}
+        workspaceLocation={workflowLocation}
+        projectName={selectedProject?.name}
+        pendingTasksCount={tasks.filter(t => !t.isDone).length}
+        completedTodayCount={tasks.filter(t => t.isDone && t.doneAt && new Date(t.doneAt).toDateString() === new Date().toDateString()).length}
+        hasUnreadContextDump={latestDump ? !latestDump.is_read : false}
+        lastActivityTime={activities[0]?.created_at ? new Date(activities[0].created_at).toLocaleTimeString() : undefined}
+        onOpenContextDump={() => {
+          setShowWorkflowPanel(false);
+          setShowContextDumpModal(true);
+        }}
+        onOpenActivityLog={() => {
+          setShowWorkflowPanel(false);
+          setShowActivityDrawer(true);
+        }}
+        onMarkContextRead={() => latestDump && markAsRead(latestDump.id)}
+      />
 
       {/* Floating Bulk Action Bar */}
       {selectedTaskIds.size > 0 && (

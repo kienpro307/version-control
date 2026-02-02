@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Plus, Circle, CheckCircle2, Trash2, Pencil, Maximize2, FileText, MoreVertical, Rocket } from 'lucide-react';
+import { Plus, Circle, CheckCircle2, Trash2, Pencil, Maximize2, FileText, MoreVertical, Rocket } from 'lucide-react';
 import { Version, Task } from '@/lib/types';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -11,8 +11,6 @@ import { useDroppable } from '@dnd-kit/core';
 interface VersionSectionProps {
     version: Version;
     tasks: Task[];
-    isExpanded: boolean;
-    onToggle: () => void;
     onAddTask: (content: string) => void;
     onToggleDone: (taskId: string, isDone: boolean) => void;
     onUpdateTask: (taskId: string, content: string) => void;
@@ -26,14 +24,11 @@ interface VersionSectionProps {
     isSelectionMode?: boolean;
     selectedTaskIds?: Set<string>;
     onToggleSelectTask?: (taskId: string) => void;
-    viewMode?: 'list' | 'board';
 }
 
 export default function VersionSection({
     version,
     tasks,
-    isExpanded,
-    onToggle,
     onAddTask,
     onToggleDone,
     onUpdateTask,
@@ -47,7 +42,6 @@ export default function VersionSection({
     isSelectionMode = false,
     selectedTaskIds = new Set(),
     onToggleSelectTask = () => { },
-    viewMode = 'list',
 }: VersionSectionProps) {
     const [newTaskContent, setNewTaskContent] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -119,19 +113,11 @@ export default function VersionSection({
     return (
         <div className={`bg-white dark:bg-slate-900 border border-l-4 rounded-xl shadow-sm hover:shadow-md transition-shadow ${borderColor} ${isUnassigned ? 'border-amber-200 dark:border-amber-900/50' : version.isActive ? 'border-emerald-200 dark:border-emerald-900/50' : 'border-slate-200 dark:border-slate-800'}`}>
             {/* Header */}
-            {/* Header */}
             <div
                 className={`w-full px-4 py-3 transition-colors relative ${isUnassigned ? 'bg-amber-50/50 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20' : version.isActive ? 'bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/20' : 'bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
             >
                 {/* Main Header Row */}
-                <div className={`flex items-center gap-3 ${viewMode === 'board' ? 'mb-2' : ''}`}>
-                    <button
-                        onClick={onToggle}
-                        className={`transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'} shrink-0`}
-                    >
-                        <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                    </button>
-
+                <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0 flex items-center gap-2">
                         {isEditingName ? (
                             <input
@@ -146,7 +132,7 @@ export default function VersionSection({
                             />
                         ) : (
                             <span
-                                className={`font-mono font-semibold truncate block ${isUnassigned ? 'text-amber-700 dark:text-amber-500' : version.isActive ? 'text-emerald-700 dark:text-emerald-500' : 'text-slate-700 dark:text-slate-300'} ${viewMode === 'board' ? 'text-base' : 'text-sm'}`}
+                                className={`font-mono font-semibold truncate block text-sm ${isUnassigned ? 'text-amber-700 dark:text-amber-500' : version.isActive ? 'text-emerald-700 dark:text-emerald-500' : 'text-slate-700 dark:text-slate-300'}`}
                                 onDoubleClick={() => {
                                     if (!isUnassigned && onUpdateVersion) setIsEditingName(true);
                                 }}
@@ -212,10 +198,9 @@ export default function VersionSection({
                     </div>
                 </div>
 
-                {/* Meta Row (Badges, Date, Progress) */}
-                <div className={`flex items-center gap-2 ${viewMode === 'board' ? 'justify-between w-full pl-7' : 'ml-auto'}`}>
-                    {/* Left side Metadata (Badges, Date) */}
-                    <div className={`flex items-center gap-2 ${viewMode === 'list' ? 'hidden sm:flex' : ''}`}>
+                {/* Meta Row (Badges, Date) */}
+                <div className="flex items-center gap-2 ml-auto">
+                    <div className="flex items-center gap-2">
                         {version.isActive && !isUnassigned && (
                             <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-full uppercase tracking-wide">Active</span>
                         )}
@@ -233,81 +218,59 @@ export default function VersionSection({
                         )}
                     </div>
 
-                    {/* Right side Metadata (Progress) */}
-                    {viewMode === 'list' && (
-                        <div className="ml-auto flex items-center gap-3">
-                            {/* Only show progress on Desktop List */}
-                            <div className="hidden sm:flex items-center gap-2">
-                                <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div className={`h-full transition-all duration-500 ${progressPercent === 100 ? 'bg-emerald-500 dark:bg-emerald-500' : 'bg-blue-500 dark:bg-blue-600'}`} style={{ width: `${progressPercent}%` }} />
-                                </div>
-                                <span className={`text-xs font-medium ${progressPercent === 100 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}>{progressPercent}%</span>
-                            </div>
-                            <span className="text-sm text-slate-500 dark:text-slate-400 font-medium mr-2">{doneCount}/{totalCount}</span>
-                        </div>
-                    )}
-
-                    {viewMode === 'board' && (
-                        <div className="flex items-center gap-2 ml-auto">
-                            <span className={`text-[10px] font-bold ${progressPercent === 100 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-500'}`}>{doneCount}/{totalCount}</span>
-                            <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div className={`h-full transition-all duration-500 ${progressPercent === 100 ? 'bg-emerald-500 dark:bg-emerald-500' : 'bg-blue-500 dark:bg-blue-600'}`} style={{ width: `${progressPercent}%` }} />
-                            </div>
-                        </div>
-                    )}
+                    {/* Task count */}
+                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{doneCount}/{totalCount}</span>
                 </div>
             </div>
 
-            {/* Task Table */}
-            {isExpanded && (
-                <div ref={setNodeRef} className="border-t border-slate-100 dark:border-slate-800 min-h-[50px]">
-                    {sortedTasks.length > 0 ? (
-                        <SortableContext items={sortedTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {sortedTasks.map(task => (
-                                    <SortableTaskRow
-                                        key={task.id}
-                                        task={task}
-                                        onToggleDone={onToggleDone}
-                                        onUpdate={onUpdateTask}
-                                        onDelete={onDeleteTask}
-                                        onOpen={onOpenTask}
-                                        isSelectionMode={isSelectionMode}
-                                        isSelected={selectedTaskIds.has(task.id)}
-                                        onToggleSelect={() => onToggleSelectTask(task.id)}
-                                    />
-                                ))}
-                            </div>
-                        </SortableContext>
-                    ) : (
-                        <div className="px-4 py-6 text-center text-slate-400 dark:text-slate-500 text-sm">
-                            No tasks in this version
+            {/* Task Table - Always visible */}
+            <div ref={setNodeRef} className="border-t border-slate-100 dark:border-slate-800 min-h-[50px]">
+                {sortedTasks.length > 0 ? (
+                    <SortableContext items={sortedTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {sortedTasks.map(task => (
+                                <SortableTaskRow
+                                    key={task.id}
+                                    task={task}
+                                    onToggleDone={onToggleDone}
+                                    onUpdate={onUpdateTask}
+                                    onDelete={onDeleteTask}
+                                    onOpen={onOpenTask}
+                                    isSelectionMode={isSelectionMode}
+                                    isSelected={selectedTaskIds.has(task.id)}
+                                    onToggleSelect={() => onToggleSelectTask(task.id)}
+                                />
+                            ))}
                         </div>
-                    )}
-
-                    {/* Add Task Input */}
-                    <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-                        <Plus className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                        <input
-                            data-add-task
-                            type="text"
-                            value={newTaskContent}
-                            onChange={e => setNewTaskContent(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleAddTask()}
-                            placeholder="Add task..."
-                            className="flex-1 bg-transparent text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none dark:text-slate-200"
-                        />
-                        {newTaskContent && (
-                            <button
-                                onClick={handleAddTask}
-                                className="px-4 py-2 text-sm font-semibold bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 active:bg-blue-800 transition-all shadow-sm"
-                            >
-                                Add Task
-                            </button>
-                        )}
+                    </SortableContext>
+                ) : (
+                    <div className="px-4 py-6 text-center text-slate-400 dark:text-slate-500 text-sm">
+                        No tasks in this version
                     </div>
+                )}
+
+                {/* Add Task Input */}
+                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                    <Plus className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <input
+                        data-add-task
+                        type="text"
+                        value={newTaskContent}
+                        onChange={e => setNewTaskContent(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddTask()}
+                        placeholder="Add task..."
+                        className="flex-1 bg-transparent text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none dark:text-slate-200"
+                    />
+                    {newTaskContent && (
+                        <button
+                            onClick={handleAddTask}
+                            className="px-4 py-2 text-sm font-semibold bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 active:bg-blue-800 transition-all shadow-sm"
+                        >
+                            Add Task
+                        </button>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 }
@@ -388,7 +351,7 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
 
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+        return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
     };
 
     return (
@@ -438,7 +401,7 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
             ) : (
                 <span
                     onDoubleClick={() => setIsEditing(true)}
-                    className={`flex-1 text-sm cursor-text ${task.isDone ? 'text-slate-400 dark:text-slate-500 line-through decoration-slate-400 dark:decoration-slate-500' : 'text-slate-700 dark:text-slate-300'}`}
+                    className="flex-1 text-sm cursor-text text-slate-700 dark:text-slate-300"
                 >
                     {task.content}
                 </span>

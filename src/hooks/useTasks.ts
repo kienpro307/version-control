@@ -1,62 +1,50 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import useSWR from 'swr';
 import { supabase } from '@/lib/supabase';
 import type { Task } from '@/lib/types';
 import { useActivities } from './useActivities';
 
+async function fetchTasks(projectId: string): Promise<Task[]> {
+    const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map((t) => ({
+        id: t.id,
+        projectId: t.project_id,
+        versionId: t.version_id,
+        content: t.content,
+        isDone: t.is_done,
+        createdAt: t.created_at,
+        doneAt: t.done_at,
+        position: t.position || 0,
+        description: t.description || '',
+        labels: t.labels || [],
+        priority: t.priority || 'none',
+    }));
+}
+
 export function useTasks(projectId: string | null) {
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const { logActivity } = useActivities(projectId);
 
-    const fetchTasks = useCallback(async () => {
-        console.log('🔄 fetchTasks called with projectId:', projectId);
-        if (!projectId) {
-            console.log('⚠️ No projectId, aborting fetch');
-            setTasks([]);
-            setLoading(false);
-            return;
+    const {
+        data: tasks = [],
+        mutate,
+        isLoading: loading,
+    } = useSWR(
+        projectId ? ['tasks', projectId] : null,
+        ([, projectId]) => fetchTasks(projectId),
+        {
+            revalidateOnFocus: false,
+            dedupingInterval: 60000,
         }
-
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('project_id', projectId)
-            .eq('project_id', projectId)
-            .order('created_at', { ascending: true }); // Debug: Test if 'position' sort causes 400 error
-
-        console.log('📡 Supabase Response:', { dataBatch: data?.length, error });
-
-        if (error) {
-            console.error('❌ Error fetching tasks:', error.message);
-            setError(error.message);
-        } else {
-            console.log(`✅ Loaded ${data?.length} tasks`);
-            setTasks(
-                data.map((t) => ({
-                    id: t.id,
-                    projectId: t.project_id,
-                    versionId: t.version_id,
-                    content: t.content,
-                    isDone: t.is_done,
-                    createdAt: t.created_at,
-                    doneAt: t.done_at,
-                    position: t.position || 0,
-                    description: t.description || '',
-                    labels: t.labels || [],
-                    priority: t.priority || 'none',
-                }))
-            );
-        }
-        setLoading(false);
-    }, [projectId]);
-
-    useEffect(() => {
-        fetchTasks();
-    }, [fetchTasks]);
+    );
 
     const createTask = async (
         content: string,
@@ -82,7 +70,7 @@ export function useTasks(projectId: string | null) {
             .single();
 
         if (error) {
-            setError(error.message);
+            console.error('Error creating task:', error.message);
             return null;
         }
 
@@ -97,7 +85,8 @@ export function useTasks(projectId: string | null) {
             position: data.position,
         };
 
-        setTasks((prev) => [...prev, newTask]);
+        // Optimistic update + revalidate
+        mutate([...tasks, newTask], { revalidate: true });
 
         logActivity('create_task', 'task', newTask.id, `Created task: ${content.substring(0, 30)}...`);
 
@@ -111,14 +100,15 @@ export function useTasks(projectId: string | null) {
         const versionId = newVersionId !== undefined ? newVersionId : task.versionId;
 
         // Optimistic update
-        setTasks(prev => prev.map(t => {
+        const updatedTasks = tasks.map(t => {
             if (t.id === taskId) {
                 return { ...t, position: newPosition, versionId: versionId };
             }
             return t;
-        }));
+        });
+        mutate(updatedTasks, { revalidate: false });
 
-        const updateData: any = { position: newPosition };
+        const updateData: Record<string, unknown> = { position: newPosition };
         if (newVersionId !== undefined) {
             updateData.version_id = newVersionId;
         }
@@ -129,8 +119,8 @@ export function useTasks(projectId: string | null) {
             .eq('id', taskId);
 
         if (error) {
-            setError(error.message);
-            // Revert optimistic update ideally, but skipping for simplicity in V1
+            console.error('Error reordering task:', error.message);
+            mutate(); // Revert on error
             return false;
         }
         return true;
@@ -145,21 +135,22 @@ export function useTasks(projectId: string | null) {
 
         const doneAt = newIsDone ? new Date().toISOString() : null;
 
+        // Optimistic update
+        const updatedTasks = tasks.map((t) =>
+            t.id === id ? { ...t, isDone: newIsDone, doneAt } : t
+        );
+        mutate(updatedTasks, { revalidate: false });
+
         const { error } = await supabase
             .from('tasks')
             .update({ is_done: newIsDone, done_at: doneAt })
             .eq('id', id);
 
         if (error) {
-            setError(error.message);
+            console.error('Error toggling task:', error.message);
+            mutate(); // Revert
             return false;
         }
-
-        setTasks((prev) =>
-            prev.map((t) =>
-                t.id === id ? { ...t, isDone: newIsDone, doneAt } : t
-            )
-        );
 
         logActivity(
             newIsDone ? 'complete_task' : 'reopen_task',
@@ -172,32 +163,38 @@ export function useTasks(projectId: string | null) {
     };
 
     const updateTask = async (id: string, content: string): Promise<boolean> => {
+        // Optimistic update
+        const updatedTasks = tasks.map((t) => (t.id === id ? { ...t, content } : t));
+        mutate(updatedTasks, { revalidate: false });
+
         const { error } = await supabase
             .from('tasks')
             .update({ content })
             .eq('id', id);
 
         if (error) {
-            setError(error.message);
+            console.error('Error updating task:', error.message);
+            mutate();
             return false;
         }
 
-        setTasks((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, content } : t))
-        );
         return true;
     };
 
     const updateTaskDetails = async (id: string, updates: Partial<Task>): Promise<boolean> => {
-        const dbUpdates: any = {};
+        const dbUpdates: Record<string, unknown> = {};
         if (updates.content !== undefined) dbUpdates.content = updates.content;
         if (updates.description !== undefined) dbUpdates.description = updates.description;
-        if (updates.labels !== undefined) dbUpdates.labels = updates.labels; // Supabase handles array
+        if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
         if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
         if (updates.isDone !== undefined) {
             dbUpdates.is_done = updates.isDone;
             dbUpdates.done_at = updates.isDone ? new Date().toISOString() : null;
         }
+
+        // Optimistic update
+        const updatedTasks = tasks.map(t => t.id === id ? { ...t, ...updates } : t);
+        mutate(updatedTasks, { revalidate: false });
 
         const { error } = await supabase
             .from('tasks')
@@ -205,89 +202,69 @@ export function useTasks(projectId: string | null) {
             .eq('id', id);
 
         if (error) {
-            setError(error.message);
+            console.error('Error updating task details:', error.message);
+            mutate();
             return false;
         }
 
-        setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
         return true;
     };
 
     const deleteTask = async (id: string): Promise<boolean> => {
+        // Optimistic update
+        const updatedTasks = tasks.filter((t) => t.id !== id);
+        mutate(updatedTasks, { revalidate: false });
+
         const { error } = await supabase.from('tasks').delete().eq('id', id);
 
         if (error) {
-            setError(error.message);
+            console.error('Error deleting task:', error.message);
+            mutate();
             return false;
         }
 
-        setTasks((prev) => prev.filter((t) => t.id !== id));
         logActivity('delete_task', 'task', id, 'Deleted task');
         return true;
     };
 
-    const getPendingTasks = (): Task[] => {
+    const getPendingTasks = useCallback((): Task[] => {
         return tasks.filter((t) => !t.isDone);
-    };
+    }, [tasks]);
 
-    const getCompletedTasks = (): Task[] => {
+    const getCompletedTasks = useCallback((): Task[] => {
         return tasks.filter((t) => t.isDone);
-    };
+    }, [tasks]);
 
-    const getTasksByVersion = (versionId: string): Task[] => {
+    const getTasksByVersion = useCallback((versionId: string): Task[] => {
         return tasks.filter((t) => t.versionId === versionId);
-    };
+    }, [tasks]);
 
-    const moveTask = (taskId: string, newPosition: number, newVersionId?: string | null) => {
-        setTasks(prev => {
-            const activeTask = prev.find(t => t.id === taskId);
-            if (!activeTask) return prev;
-
-            const versionId = newVersionId !== undefined ? newVersionId : activeTask.versionId;
-
-            // Just update the moved task fields, consumer handles array reordering logic?
-            // No, dnd-kit assumes we reorder the array.
-            // But 'position' is a field. 
-            // Logic:
-            // 1. Remove task from old list
-            // 2. Insert into new list at position
-            // 3. Recalculate positions for affected items?
-
-            // Simpler approach for local state:
-            // Map task to new version/position.
-            // We rely on 'position' field for sorting? 
-            // Yes, fetchTasks sorts by position.
-            // But if we just change one task's position, we might have collision.
-            // We generally need to update positions of OTHER tasks too.
-
-            // PROPER IMPLEMENTATION:
-            // We won't do full reorder calculation here for local Dnd visual. 
-            // Dnd-kit's SortableContext uses the order of the ID array passed to it.
-            // So if we just update the `tasks` array order, that's enough for visuals if utilizing array index?
-            // But our `VersionSection` sorts by `position` explicitly or `createdAt`.
-            // My `fetchTasks` sorts by `position`.
-            // `VersionSection` sorts: `const sortedTasks = [...tasks];` (I removed the sort logic in rewrite).
-            // So `VersionSection` relies on the order of `tasks` passed to it.
-            // `tasks` comes from `useTasks` -> filtered by version.
-
-            return prev.map(t => {
-                if (t.id === taskId) {
-                    return { ...t, versionId: newVersionId !== undefined ? newVersionId : t.versionId };
-                }
-                return t;
-            });
+    const moveTask = useCallback((taskId: string, newPosition: number, newVersionId?: string | null) => {
+        const updatedTasks = tasks.map(t => {
+            if (t.id === taskId) {
+                return { ...t, versionId: newVersionId !== undefined ? newVersionId : t.versionId };
+            }
+            return t;
         });
-    };
+        mutate(updatedTasks, { revalidate: false });
+    }, [tasks, mutate]);
+
+    // Expose setTasks-like functionality through mutate for dnd-kit compatibility
+    const setTasks = useCallback((updater: Task[] | ((prev: Task[]) => Task[])) => {
+        if (typeof updater === 'function') {
+            mutate(updater(tasks), { revalidate: false });
+        } else {
+            mutate(updater, { revalidate: false });
+        }
+    }, [tasks, mutate]);
 
     return {
         tasks,
-        setTasks, // Expose for dnd-kit arrayMove
+        setTasks,
         loading,
-        error,
         createTask,
         reorderTask,
         moveTask,
-        // ...
         toggleDone,
         updateTask,
         updateTaskDetails,
@@ -295,6 +272,6 @@ export function useTasks(projectId: string | null) {
         getPendingTasks,
         getCompletedTasks,
         getTasksByVersion,
-        refetch: fetchTasks,
+        refetch: mutate,
     };
 }

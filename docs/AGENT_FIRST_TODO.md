@@ -12,8 +12,8 @@
 - [x] Research `@supabase/mcp-server-supabase` package
 - [x] Tạo Cloudflare Worker / Vercel Edge Function để host MCP server
 - [x] Config environment variables (SUPABASE_URL, SUPABASE_ANON_KEY)
-- [/] Test connection từ local Antigravity đến MCP server
-- [/] Document cách configure MCP trong Antigravity settings
+- [x] Test connection từ local Antigravity đến MCP server
+- [x] Document cách configure MCP trong Antigravity settings
 
 ### 1.2 Tạo bảng `context_dumps` (Mental Model Store)
 
@@ -70,8 +70,8 @@
   diff_summary TEXT -- tóm tắt thay đổi logic code
   ```
 - [x] Update `useActivities.ts` để support field mới
-- [ ] Update `ActivityDrawer.tsx` hiển thị diff_summary
-- [ ] Cho phép edit diff_summary từ UI
+- [x] Update `ActivityDrawer.tsx` hiển thị diff_summary
+- [x] Cho phép edit diff_summary từ UI
 
 ### 3.2 Command Palette AI-Native
 
@@ -91,7 +91,7 @@
   - Thêm textarea "Paste commit messages here"
   - Nút "Generate Changelog" → format commits thành changelog
   - Preview và edit trước khi save
-- [ ] Lưu changelog vào bảng mới hoặc field trong `versions`
+- [x] Lưu changelog vào bảng mới hoặc field trong `versions`
 
 ---
 
@@ -123,23 +123,96 @@
 
 ---
 
-## Phase 6: Daily Workflow Integration 📅
+## Phase 6: Daily Workflow Integration 📅 ✅
 
 ### 5.1 Office Workflow
 
-- [ ] Tạo checklist "Before Leaving Office":
+- [x] Tạo checklist "Before Leaving Office":
   1. Run context dump cho project đang làm
   2. Update task status
   3. Sync activities
-- [ ] Có thể tạo reminder/notification
+- [x] Có thể tạo reminder/notification
 
 ### 5.2 Home Workflow
 
-- [ ] Tạo "Welcome Back" flow:
+- [x] Tạo "Welcome Back" flow:
   1. Load context dump mới nhất
   2. Hiển thị summary những gì đã làm ở office
   3. Suggest next actions
-- [ ] Integrate với ContextBanner
+- [x] Integrate với ContextBanner
+
+---
+
+## Phase 7: AI Integration & Natural Language Commands 🤖✨
+
+> **Goal**: Cho phép nhập lệnh tự nhiên như "Cập nhật tiến độ PDFReader lên 80%"
+
+### 7.1 Database Schema Updates
+
+- [ ] Tạo bảng `ai_logs` để lưu lịch sử lệnh AI:
+  ```sql
+  - command: TEXT (lệnh người dùng nhập)
+  - interpreted_action: TEXT (action đã parse)
+  - result: JSONB (kết quả thực hiện)
+  - status: TEXT ('pending' | 'success' | 'failed')
+  - execution_time_ms: INTEGER
+  ```
+- [ ] Thêm cột `progress` (INTEGER) vào bảng `projects`
+- [ ] Thêm cột `local_path` (TEXT) vào bảng `projects` (optional, cho file access)
+- [ ] Run migration trên Supabase
+
+### 7.2 Hooks & API
+
+- [ ] Tạo hook `useAILogs.ts`:
+  - `createLog(command, action, result, status)`
+  - `getRecentLogs(projectId, limit)`
+- [ ] Update `useProjects.ts`:
+  - Thêm `updateProgress(projectId, progress)`
+  - Fetch và display `progress` field
+
+### 7.3 Command Parser (Client-side)
+
+- [ ] Tạo `src/lib/commandParser.ts`:
+  - Parse "Cập nhật tiến độ X lên Y%" → `{ action: 'update_progress', project: 'X', value: Y }`
+  - Parse "Thêm task: ABC" → `{ action: 'create_task', content: 'ABC' }`
+  - Parse "Hoàn thành task ABC" → `{ action: 'complete_task', taskName: 'ABC' }`
+  - Parse "Liệt kê file trong X" → `{ action: 'list_files', project: 'X' }`
+- [ ] Viết unit tests cho parser
+
+### 7.4 AI Command Bar Component
+
+- [ ] Tạo `src/components/AICommandBar.tsx`:
+  - Input field style nổi bật (center stage)
+  - Placeholder: "Ask AI: Update PDFReader progress to 80%..."
+  - Keyboard shortcut: `Cmd+K` để focus
+  - Loading state khi đang xử lý
+  - History dropdown (lệnh gần đây)
+- [ ] Integrate vào TopBar hoặc dưới Stats Ribbon
+
+### 7.5 Command Execution Logic
+
+- [ ] Tạo `src/lib/commandExecutor.ts`:
+  - `executeCommand(parsedCommand)` → gọi hooks tương ứng
+  - Log vào `ai_logs` table
+  - Return success/error message
+- [ ] Hiển thị toast notification sau khi thực hiện lệnh
+
+### 7.6 MCP Server Updates
+
+- [ ] Thêm tool `update_project_progress`:
+  - Input: `{ projectId, progress }`
+  - Update DB và return success
+- [ ] Thêm tool `log_ai_action`:
+  - Input: `{ command, action, result }`
+  - Lưu vào `ai_logs`
+- [ ] (Optional) Thêm tool `list_project_files`:
+  - Nếu dùng file tree snapshot approach
+
+### 7.7 Dashboard UI Updates
+
+- [ ] Hiển thị progress bar cho mỗi project trong Sidebar
+- [ ] Thêm AI Logs panel vào ActivityDrawer hoặc panel riêng
+- [ ] Quick actions từ AI suggestions
 
 ---
 
@@ -162,7 +235,11 @@
 | 6 | Phase 3.2 - Command Palette | Medium | Medium |
 | 7 | Phase 3.3 - Changelog | Low | Low |
 | 8 | Phase 4 - Tuist | High | TBD |
-| 9 | Phase 5 - Workflow | Low | Medium |
+| 9 | Phase 6 - Workflow | Low | Medium |
+| 10 | **Phase 7.1 - AI Schema** | Low | High |
+| 11 | **Phase 7.2-7.3 - Hooks + Parser** | Medium | High |
+| 12 | **Phase 7.4-7.5 - AICommandBar** | Medium | Very High |
+| 13 | **Phase 7.6 - MCP Updates** | Medium | High |
 
 ---
 
@@ -171,3 +248,5 @@
 - **Không dùng API key**: Command Palette sẽ generate prompt → copy → paste vào Antigravity Ultra
 - **MCP Server trên Cloud**: Vercel Edge Function hoặc Cloudflare Worker
 - **Context Dump = Bộ nhớ ngoài**: Giúp Agent "nhớ" context giữa các phiên làm việc
+- **AI Command Bar**: Parse lệnh tiếng Việt/Anh bằng regex patterns, không cần GPT API
+

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { X, Copy, Check, FileText, Download, Sparkles, GitCommit, List } from 'lucide-react';
+import { X, Copy, Check, FileText, Download, Sparkles, GitCommit, List, Save } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Version, Task } from '@/lib/types';
 import PromptPreviewModal from './PromptPreviewModal';
@@ -12,12 +12,13 @@ interface ChangelogModalProps {
     tasks: Task[];
     onClose: () => void;
     onRelease?: () => void;
+    onSaveChangelog?: (changelog: string) => Promise<boolean>;
 }
 
 type ChangelogFormat = 'markdown' | 'plain' | 'html';
 type ChangelogSource = 'auto' | 'manual';
 
-export default function ChangelogModal({ version, tasks, onClose, onRelease }: ChangelogModalProps) {
+export default function ChangelogModal({ version, tasks, onClose, onRelease, onSaveChangelog }: ChangelogModalProps) {
     const [source, setSource] = useState<ChangelogSource>('auto');
     const [format, setFormat] = useState<ChangelogFormat>('markdown');
     const [copied, setCopied] = useState(false);
@@ -26,6 +27,8 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
     const [showPromptPreview, setShowPromptPreview] = useState(false);
     const [manualInput, setManualInput] = useState('');
     const [generatedPrompt, setGeneratedPrompt] = useState<{ title: string; content: string } | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
 
     const completedTasks = useMemo(() => tasks.filter(t => t.isDone), [tasks]);
     const pendingTasks = useMemo(() => tasks.filter(t => !t.isDone), [tasks]);
@@ -158,6 +161,17 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
         URL.revokeObjectURL(url);
     };
 
+    const handleSave = async () => {
+        if (!onSaveChangelog) return;
+        setSaving(true);
+        const success = await onSaveChangelog(generateChangelog);
+        setSaving(false);
+        if (success) {
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        }
+    };
+
     const handleGenerateAgentPrompt = () => {
         let prompt = '';
         if (source === 'manual') {
@@ -200,8 +214,8 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
                     <button
                         onClick={() => setSource('auto')}
                         className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${source === 'auto'
-                                ? 'text-emerald-600 dark:text-emerald-500 bg-white dark:bg-slate-900'
-                                : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'text-emerald-600 dark:text-emerald-500 bg-white dark:bg-slate-900'
+                            : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800'
                             }`}
                     >
                         <List className="w-4 h-4" />
@@ -211,8 +225,8 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
                     <button
                         onClick={() => setSource('manual')}
                         className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${source === 'manual'
-                                ? 'text-emerald-600 dark:text-emerald-500 bg-white dark:bg-slate-900'
-                                : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'text-emerald-600 dark:text-emerald-500 bg-white dark:bg-slate-900'
+                            : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800'
                             }`}
                     >
                         <GitCommit className="w-4 h-4" />
@@ -337,6 +351,22 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
                                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                                     {copied ? 'Copied!' : 'Copy to Clipboard'}
                                 </button>
+                                {onSaveChangelog && (
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${saved ? 'bg-blue-100 text-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700'} disabled:opacity-50`}
+                                    >
+                                        {saving ? (
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        ) : saved ? (
+                                            <Check className="w-4 h-4" />
+                                        ) : (
+                                            <Save className="w-4 h-4" />
+                                        )}
+                                        {saving ? 'Saving...' : saved ? 'Saved!' : 'Save to Version'}
+                                    </button>
+                                )}
                             </>
                         )}
                         {source === 'manual' && (

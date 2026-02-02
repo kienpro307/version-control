@@ -41,7 +41,14 @@ export default function Home() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
   // Hooks dependent on selectedProjectId
-  const { versions, createVersion: apiCreateVersion, updateVersion: apiUpdateVersion, loading: versionsLoading } = useVersions(selectedProjectId || null);
+  const {
+    versions,
+    createVersion: apiCreateVersion,
+    updateVersion: apiUpdateVersion,
+    deleteVersion: apiDeleteVersion,
+    setActiveVersion: apiSetActiveVersion,
+    loading: versionsLoading
+  } = useVersions(selectedProjectId || null);
   const {
     tasks,
     createTask: apiCreateTask,
@@ -587,6 +594,9 @@ export default function Home() {
                     onDeleteTask={apiDeleteTask}
                     onOpenTask={task => setSelectedTask(task)}
                     onGenerateChangelog={() => setChangelogVersion(version)}
+                    onDeleteVersion={apiDeleteVersion}
+                    onSetActiveVersion={apiSetActiveVersion}
+                    onUpdateVersion={apiUpdateVersion}
                     isSelectionMode={isSelectionMode}
                     selectedTaskIds={selectedTaskIds}
                     onToggleSelectTask={toggleTaskSelection}

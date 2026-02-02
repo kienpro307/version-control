@@ -20,6 +20,10 @@ export interface Task {
     isDone: boolean;
     createdAt: string;
     doneAt: string | null;
+    position: number;
+    description?: string;
+    labels?: string[];
+    priority?: 'none' | 'low' | 'medium' | 'high' | 'urgent';
 }
 
 export interface Settings {

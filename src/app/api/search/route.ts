@@ -1,9 +1,12 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { apiSuccess, errors } from '@/lib/api-utils';
+import { apiSuccess, errors, checkAuth } from '@/lib/api-utils';
 
 // GET /api/search - Search across tasks, projects, versions
 export async function GET(request: NextRequest) {
+    const authError = checkAuth(request);
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const type = searchParams.get('type') || 'all'; // 'tasks', 'projects', 'versions', 'all'

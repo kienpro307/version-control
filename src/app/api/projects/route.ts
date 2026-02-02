@@ -1,9 +1,12 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { apiSuccess, errors } from '@/lib/api-utils';
+import { apiSuccess, errors, checkAuth } from '@/lib/api-utils';
 
 // GET /api/projects - List projects (optionally filter by groupId)
 export async function GET(request: NextRequest) {
+    const authError = checkAuth(request);
+    if (authError) return authError;
+
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
 
@@ -34,6 +37,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/projects - Create a new project
 export async function POST(request: NextRequest) {
+    const authError = checkAuth(request);
+    if (authError) return authError;
+
     const body = await request.json();
     const { name, groupId } = body;
 

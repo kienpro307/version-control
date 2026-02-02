@@ -1,9 +1,12 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { apiSuccess, errors } from '@/lib/api-utils';
+import { apiSuccess, errors, checkAuth } from '@/lib/api-utils';
 
 // GET /api/groups - List all groups (tree structure)
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const authError = checkAuth(request);
+    if (authError) return authError;
+
     const { data, error } = await supabase
         .from('project_groups')
         .select('*')
@@ -32,6 +35,9 @@ export async function GET() {
 
 // POST /api/groups - Create a new group
 export async function POST(request: NextRequest) {
+    const authError = checkAuth(request);
+    if (authError) return authError;
+
     const body = await request.json();
     const { name, parentId } = body;
 

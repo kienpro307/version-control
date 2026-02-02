@@ -1,12 +1,15 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { apiSuccess, errors } from '@/lib/api-utils';
+import { apiSuccess, errors, checkAuth } from '@/lib/api-utils';
 
 // PATCH /api/tasks/:id - Update a task (content, isDone)
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const authError = checkAuth(request);
+    if (authError) return authError;
+
     const { id } = await params;
     const body = await request.json();
     const { content, isDone } = body;
@@ -56,6 +59,9 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const authError = checkAuth(request);
+    if (authError) return authError;
+
     const { id } = await params;
 
     const { error } = await supabase

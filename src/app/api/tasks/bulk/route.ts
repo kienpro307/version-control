@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { apiSuccess, errors } from '@/lib/api-utils';
+import { apiSuccess, errors, checkAuth } from '@/lib/api-utils';
 
 interface BulkOperation {
     action: 'create' | 'update' | 'delete';
@@ -20,6 +20,9 @@ interface OperationResult {
 
 // POST /api/tasks/bulk - Bulk create/update/delete tasks
 export async function POST(request: NextRequest) {
+    const authError = checkAuth(request);
+    if (authError) return authError;
+
     const body = await request.json();
     const { operations } = body as { operations: BulkOperation[] };
 

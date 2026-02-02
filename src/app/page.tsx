@@ -34,7 +34,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 export default function Home() {
   // --- Supabase Hooks ---
-  const { projects, createProject: apiCreateProject, loading: projectsLoading } = useProjects();
+  const { projects, createProject: apiCreateProject, updateProject: apiUpdateProject, deleteProject: apiDeleteProject, loading: projectsLoading } = useProjects();
   const { settings, updateLastProject: apiUpdateLastProject } = useSettings();
 
   // Local state for selection (though we try to sync with stats/settings)
@@ -382,7 +382,6 @@ export default function Home() {
     );
   }
 
-  const activeTab = 'projects';
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   return (
@@ -390,13 +389,13 @@ export default function Home() {
 
       {/* Sidebar */}
       <Sidebar
-        activeTab={activeTab}
-        onTabChange={(tab: string) => console.log('Tab changed:', tab)}
-        // @ts-ignore - Sidebar will be updated momentarily to accept these props
         projects={projects}
         selectedProjectId={selectedProjectId}
         onSelectProject={setSelectedProjectId}
         onCreateProject={apiCreateProject}
+        onUpdateProject={apiUpdateProject}
+        onDeleteProject={apiDeleteProject}
+        onOpenActivity={() => setShowActivityDrawer(true)}
       />
 
       {/* Main Content Area */}
@@ -478,23 +477,22 @@ export default function Home() {
         </div>
 
         <div className="max-w-5xl mx-auto px-4 py-8">
-          {/* Stats Bar */}
+          {/* Stats Ribbon */}
           {!searchQuery && (
-            <div className="grid grid-cols-3 gap-4 mb-8">
-              <div className="bg-white p-4 rounded-xl border border-amber-100 shadow-sm hover:shadow-md transition-shadow">
-                <div className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Pending</div>
-                <div className="text-2xl font-bold text-slate-800">{stats.pending}</div>
-                <div className="text-xs text-slate-400 mt-1">tasks remaining</div>
+            <div className="flex items-center gap-8 mb-8 px-1">
+              <div className="flex items-baseline gap-2.5 group cursor-default">
+                <span className="text-3xl font-bold text-slate-800 tracking-tight group-hover:text-amber-600 transition-colors">{stats.pending}</span>
+                <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-amber-600/80 transition-colors">pending</span>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
-                <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Completed</div>
-                <div className="text-2xl font-bold text-slate-800">{stats.done}</div>
-                <div className="text-xs text-slate-400 mt-1">tasks finished</div>
+              <div className="h-8 w-px bg-slate-200/60" />
+              <div className="flex items-baseline gap-2.5 group cursor-default">
+                <span className="text-3xl font-bold text-slate-800 tracking-tight group-hover:text-emerald-600 transition-colors">{stats.done}</span>
+                <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-emerald-600/80 transition-colors">completed</span>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
-                <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Released</div>
-                <div className="text-2xl font-bold text-slate-800">{stats.released}</div>
-                <div className="text-xs text-slate-400 mt-1">in previous versions</div>
+              <div className="h-8 w-px bg-slate-200/60" />
+              <div className="flex items-baseline gap-2.5 group cursor-default">
+                <span className="text-3xl font-bold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">{stats.released}</span>
+                <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-blue-600/80 transition-colors">released</span>
               </div>
             </div>
           )}
@@ -542,20 +540,35 @@ export default function Home() {
               onDragEnd={handleDragEnd}
             >
               {displayVersions.length === 0 && tasksByVersion.unassigned.length === 0 && !versionsLoading && (
-                <div className="text-center py-16 bg-white border border-dashed border-slate-300 rounded-xl">
-                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Package className="w-8 h-8 text-slate-300" />
+                <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
+                  <div className="relative mb-8 group cursor-pointer" onClick={() => setShowVersionModal(true)}>
+                    <div className="absolute inset-0 bg-emerald-100 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-500" />
+                    <div className="relative w-24 h-24 bg-white/50 backdrop-blur-sm rounded-2xl shadow-xl flex items-center justify-center border border-white/60 transform group-hover:-translate-y-2 transition-transform duration-300">
+                      <Package className="w-10 h-10 text-emerald-600/80 group-hover:text-emerald-600 transition-colors" />
+                    </div>
+                    {/* Decorative elements */}
+                    <div className="absolute -right-4 -bottom-2 w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center border border-slate-50 transform rotate-12 group-hover:rotate-6 transition-transform duration-300 delay-75">
+                      <div className="w-6 h-1.5 bg-slate-100 rounded-full" />
+                    </div>
+                    <div className="absolute -left-3 -top-2 w-8 h-8 bg-emerald-50 rounded-lg shadow-md flex items-center justify-center transform -rotate-6 group-hover:-rotate-12 transition-transform duration-300 delay-100">
+                      <Plus className="w-4 h-4 text-emerald-400" />
+                    </div>
                   </div>
-                  <p className="text-slate-500 font-medium">No versions found</p>
-                  <p className="text-slate-400 text-sm mt-1">
-                    {searchQuery ? 'Try a different search term' : 'Create your first version to get started'}
+
+                  <h3 className="text-xl font-bold text-slate-800 mb-3">No versions found</h3>
+                  <p className="text-slate-500 max-w-sm mb-8 leading-relaxed text-sm">
+                    Create your first version to start tracking tasks and releases for <span className="font-semibold text-slate-700">{selectedProject?.name}</span>.
                   </p>
+
                   {!searchQuery && (
                     <button
                       onClick={() => setShowVersionModal(true)}
-                      className="mt-4 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700"
+                      className="group relative px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95 transition-all"
                     >
-                      Create Version
+                      <span className="flex items-center gap-2">
+                        <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                        Create Version
+                      </span>
                     </button>
                   )}
                 </div>

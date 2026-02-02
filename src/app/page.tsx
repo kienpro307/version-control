@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Package, ChevronDown, Plus, Search, Command, Menu, CheckSquare, X, Clock } from 'lucide-react';
+import { Package, ChevronDown, Plus, Search, Command, Menu, CheckSquare, X, Clock, Brain } from 'lucide-react';
 import VersionSection from '@/components/VersionSection';
 import CreateVersionModal from '@/components/CreateVersionModal';
 import CommandPalette from '@/components/CommandPalette';
@@ -9,12 +9,15 @@ import TaskDrawer from '@/components/TaskDrawer';
 import Sidebar from '@/components/Sidebar';
 import ChangelogModal from '@/components/ChangelogModal';
 import ActivityDrawer from '@/components/ActivityDrawer';
+import ContextDumpModal from '@/components/ContextDumpModal';
+import ContextBanner from '@/components/ContextBanner';
 import {
   useProjects,
   useVersions,
   useTasks,
   useSettings,
-  useActivities
+  useActivities,
+  useContextDumps
 } from '@/hooks';
 import type { Task, Version } from '@/lib/types';
 import {
@@ -40,6 +43,21 @@ export default function Home() {
   // Local state for selection (though we try to sync with stats/settings)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
+  // Sidebar resizing
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebarWidth');
+    if (saved) {
+      const w = Number(saved);
+      if (!isNaN(w) && w >= 200 && w <= 600) setSidebarWidth(w);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sidebarWidth', sidebarWidth.toString());
+  }, [sidebarWidth]);
+
   // Hooks dependent on selectedProjectId
   const {
     versions,
@@ -60,6 +78,7 @@ export default function Home() {
     updateTaskDetails: apiUpdateTaskDetails,
   } = useTasks(selectedProjectId || null);
   const { activities, loading: activitiesLoading } = useActivities(selectedProjectId || null);
+  const { latestDump, createContextDump, markAsRead, getUnreadDump } = useContextDumps(selectedProjectId || null);
 
   // --- UI State ---
   const [showVersionModal, setShowVersionModal] = useState(false);
@@ -75,6 +94,7 @@ export default function Home() {
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [changelogVersion, setChangelogVersion] = useState<Version | null>(null);
+  const [showContextDumpModal, setShowContextDumpModal] = useState(false);
 
   // Bulk Actions State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -286,9 +306,8 @@ export default function Home() {
     { id: 'add-version', label: 'Create Version', shortcut: 'V', action: () => setShowVersionModal(true) },
     { id: 'export', label: 'Export JSON', shortcut: 'Ctrl+E', action: handleExport },
     { id: 'shortcuts', label: 'Show Shortcuts', shortcut: '?', action: () => setShowShortcuts(true) },
+    { id: 'agent-dump', label: 'Agent: Context Dump', shortcut: '/agent', action: () => setShowContextDumpModal(true) },
   ];
-
-  // --- Dnd Handlers ---
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragTaskId(event.active.id as string);
   };
@@ -301,24 +320,24 @@ export default function Home() {
     const activeTask = tasks.find(t => t.id === active.id);
     const overTask = tasks.find(t => t.id === over.id);
 
-    if (!activeTask || !overTask) return;
+    // Check if over is a container (Version ID)
+    const isOverContainer = versions.some(v => v.id === over.id) || over.id === 'unassigned';
+    const overVersionId = isOverContainer ? over.id as string : null;
 
-    if (activeTask.versionId !== overTask.versionId) {
-      // Moving to different version
-      // We use MoveTask to update local state optimistically
-      // Logic: activeTask.versionId = overTask.versionId
-      // Dnd-kit logic:
-      // We need to insert it into the new list.
-      // For visual, we just change the versionId.
-      // We rely on 'moveTask' hook
+    if (!activeTask) return;
 
-      // Logic: activeTask.versionId = overTask.versionId
-      // Dnd-kit logic:
-      // We need to insert it into the new list.
-      // For visual, we just change the versionId.
-      // We rely on 'moveTask' hook
-
-      apiMoveTask(activeTask.id, 0, overTask.versionId);
+    // Case 1: Over another Task
+    if (overTask) {
+      if (activeTask.versionId !== overTask.versionId) {
+        // Moving to different version
+        apiMoveTask(activeTask.id, 0, overTask.versionId);
+      }
+    }
+    // Case 2: Over a Version Container (Empty column drop)
+    else if (overVersionId) {
+      if (activeTask.versionId !== overVersionId) {
+        apiMoveTask(activeTask.id, 0, overVersionId);
+      }
     }
   };
 
@@ -330,13 +349,25 @@ export default function Home() {
 
     const activeTask = tasks.find(t => t.id === active.id);
     const overTask = tasks.find(t => t.id === over.id);
+    const isOverContainer = versions.some(v => v.id === over.id) || over.id === 'unassigned';
+    const overVersionId = isOverContainer ? over.id as string : null;
 
-    if (activeTask && overTask && activeTask.id !== overTask.id) {
-      if (activeTask.versionId === overTask.versionId) {
-        apiReorderTask(activeTask.id, overTask.position, activeTask.versionId);
-        apiReorderTask(overTask.id, activeTask.position, overTask.versionId);
-      } else {
-        apiReorderTask(activeTask.id, overTask.position + 1, overTask.versionId);
+    if (activeTask) {
+      if (overTask && activeTask.id !== overTask.id) {
+        if (activeTask.versionId === overTask.versionId) {
+          apiReorderTask(activeTask.id, overTask.position, activeTask.versionId);
+          apiReorderTask(overTask.id, activeTask.position, overTask.versionId);
+        } else {
+          apiReorderTask(activeTask.id, overTask.position + 1, overTask.versionId);
+        }
+      } else if (overVersionId) {
+        // Dropped on container
+        if (activeTask.versionId !== overVersionId) {
+          // Append to end
+          const tasksInVersion = tasks.filter(t => t.versionId === overVersionId);
+          const newPos = tasksInVersion.length > 0 ? Math.max(...tasksInVersion.map(t => t.position)) + 1 : 0;
+          apiReorderTask(activeTask.id, newPos, overVersionId);
+        }
       }
     }
   };
@@ -392,7 +423,7 @@ export default function Home() {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-black font-sans text-slate-900 dark:text-slate-100 selection:bg-emerald-100 dark:selection:bg-emerald-900 selection:text-emerald-900 dark:selection:text-emerald-100">
 
       {/* Sidebar */}
       <Sidebar
@@ -403,13 +434,27 @@ export default function Home() {
         onUpdateProject={apiUpdateProject}
         onDeleteProject={apiDeleteProject}
         onOpenActivity={() => setShowActivityDrawer(true)}
+        width={sidebarWidth}
+        setWidth={setSidebarWidth}
       />
 
+      {/* DEBUG BANNER - TEMPORARY */}
+      <div className="fixed bottom-4 right-4 z-[9999] bg-black/80 text-white p-4 rounded-lg text-xs font-mono max-w-sm pointer-events-none">
+        <p>Project ID: {selectedProjectId}</p>
+        <p>Versions: {versions.length}</p>
+        <p>Tasks: {tasks.length}</p>
+        {/* We don't have tasksError exposed from useTasks, need to assume if 0 and ProjectID valid */}
+      </div>
+
+
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col lg:pl-64 transition-all duration-300">
+      <div
+        className="flex-1 flex flex-col lg:pl-[var(--sidebar-width)] transition-all duration-75 ease-out"
+        style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
+      >
 
         {/* Top Bar */}
-        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-200">
+        <div className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm transition-all duration-200">
           <div className="max-w-5xl mx-auto px-4 py-3 h-16 flex items-center justify-between">
             {/* Left: Breadcrumb / Project Name */}
             <div className="flex items-center gap-3">
@@ -421,7 +466,7 @@ export default function Home() {
                 <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center font-bold">
                   {selectedProject?.name.charAt(0) || 'P'}
                 </div>
-                <h1 className="font-bold text-slate-800 text-lg sm:text-xl truncate max-w-[150px] sm:max-w-xs transition-all">
+                <h1 className="font-bold text-slate-800 dark:text-slate-100 text-lg sm:text-xl truncate max-w-[150px] sm:max-w-xs transition-all">
                   {selectedProject?.name || 'Select Project'}
                 </h1>
               </div>
@@ -436,10 +481,10 @@ export default function Home() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search tasks..."
-                  className="w-full pl-9 pr-10 py-2 bg-slate-100 border-none rounded-lg text-sm text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-slate-400"
+                  className="w-full pl-9 pr-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-slate-400"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
-                  <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px] font-medium text-slate-500 opacity-100">
+                  <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-1.5 font-mono text-[10px] font-medium text-slate-500 dark:text-slate-400 opacity-100">
                     <span className="text-xs">/</span>
                   </kbd>
                 </div>
@@ -464,6 +509,14 @@ export default function Home() {
                 <div className="h-6 w-px bg-slate-200 mx-1" />
 
                 <button
+                  onClick={() => setShowContextDumpModal(true)}
+                  className="p-2 text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                  title="Context Dump"
+                >
+                  <Brain className="w-5 h-5" />
+                </button>
+
+                <button
                   onClick={() => setShowActivityDrawer(true)}
                   className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                   title="Activity Log"
@@ -473,7 +526,7 @@ export default function Home() {
 
                 <button
                   onClick={() => setShowShortcuts(true)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                   title="Shortcuts (?)"
                 >
                   <Command className="w-5 h-5" />
@@ -483,22 +536,34 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Context Banner */}
+        {getUnreadDump() && selectedProject && (
+          <ContextBanner
+            dump={getUnreadDump()!}
+            onDismiss={() => markAsRead(getUnreadDump()!.id)}
+            onContinue={() => {
+              markAsRead(getUnreadDump()!.id);
+              // Could open a modal or do something else here
+            }}
+          />
+        )}
+
         <div className="max-w-5xl mx-auto px-4 py-8">
           {/* Stats Ribbon */}
           {!searchQuery && (
             <div className="flex items-center gap-8 mb-8 px-1">
               <div className="flex items-baseline gap-2.5 group cursor-default">
-                <span className="text-3xl font-bold text-slate-800 tracking-tight group-hover:text-amber-600 transition-colors">{stats.pending}</span>
+                <span className="text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight group-hover:text-amber-600 transition-colors">{stats.pending}</span>
                 <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-amber-600/80 transition-colors">pending</span>
               </div>
-              <div className="h-8 w-px bg-slate-200/60" />
+              <div className="h-8 w-px bg-slate-200/60 dark:bg-slate-700/60" />
               <div className="flex items-baseline gap-2.5 group cursor-default">
-                <span className="text-3xl font-bold text-slate-800 tracking-tight group-hover:text-emerald-600 transition-colors">{stats.done}</span>
+                <span className="text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight group-hover:text-emerald-600 transition-colors">{stats.done}</span>
                 <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-emerald-600/80 transition-colors">completed</span>
               </div>
-              <div className="h-8 w-px bg-slate-200/60" />
+              <div className="h-8 w-px bg-slate-200/60 dark:bg-slate-700/60" />
               <div className="flex items-baseline gap-2.5 group cursor-default">
-                <span className="text-3xl font-bold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">{stats.released}</span>
+                <span className="text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight group-hover:text-blue-600 transition-colors">{stats.released}</span>
                 <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-blue-600/80 transition-colors">released</span>
               </div>
             </div>
@@ -521,16 +586,16 @@ export default function Home() {
 
           {/* View Toggle & Content */}
           <div className="flex items-center justify-end mb-4 px-1">
-            <div className="flex bg-slate-100 p-1 rounded-lg">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
               <button
                 onClick={() => setViewMode('list')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
               >
                 List
               </button>
               <button
                 onClick={() => setViewMode('board')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'board' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'board' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
               >
                 Board
               </button>
@@ -549,22 +614,22 @@ export default function Home() {
               {displayVersions.length === 0 && tasksByVersion.unassigned.length === 0 && !versionsLoading && (
                 <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
                   <div className="relative mb-8 group cursor-pointer" onClick={() => setShowVersionModal(true)}>
-                    <div className="absolute inset-0 bg-emerald-100 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-500" />
-                    <div className="relative w-24 h-24 bg-white/50 backdrop-blur-sm rounded-2xl shadow-xl flex items-center justify-center border border-white/60 transform group-hover:-translate-y-2 transition-transform duration-300">
+                    <div className="absolute inset-0 bg-emerald-100 dark:bg-emerald-900/30 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-500" />
+                    <div className="relative w-24 h-24 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl shadow-xl flex items-center justify-center border border-white/60 dark:border-slate-700 transform group-hover:-translate-y-2 transition-transform duration-300">
                       <Package className="w-10 h-10 text-emerald-600/80 group-hover:text-emerald-600 transition-colors" />
                     </div>
                     {/* Decorative elements */}
-                    <div className="absolute -right-4 -bottom-2 w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center border border-slate-50 transform rotate-12 group-hover:rotate-6 transition-transform duration-300 delay-75">
-                      <div className="w-6 h-1.5 bg-slate-100 rounded-full" />
+                    <div className="absolute -right-4 -bottom-2 w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-lg flex items-center justify-center border border-slate-50 dark:border-slate-700 transform rotate-12 group-hover:rotate-6 transition-transform duration-300 delay-75">
+                      <div className="w-6 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full" />
                     </div>
-                    <div className="absolute -left-3 -top-2 w-8 h-8 bg-emerald-50 rounded-lg shadow-md flex items-center justify-center transform -rotate-6 group-hover:-rotate-12 transition-transform duration-300 delay-100">
+                    <div className="absolute -left-3 -top-2 w-8 h-8 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg shadow-md flex items-center justify-center transform -rotate-6 group-hover:-rotate-12 transition-transform duration-300 delay-100">
                       <Plus className="w-4 h-4 text-emerald-400" />
                     </div>
                   </div>
 
-                  <h3 className="text-xl font-bold text-slate-800 mb-3">No versions found</h3>
-                  <p className="text-slate-500 max-w-sm mb-8 leading-relaxed text-sm">
-                    Create your first version to start tracking tasks and releases for <span className="font-semibold text-slate-700">{selectedProject?.name}</span>.
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-3">No versions found</h3>
+                  <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8 leading-relaxed text-sm">
+                    Create your first version to start tracking tasks and releases for <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedProject?.name}</span>.
                   </p>
 
                   {!searchQuery && (
@@ -600,6 +665,7 @@ export default function Home() {
                     isSelectionMode={isSelectionMode}
                     selectedTaskIds={selectedTaskIds}
                     onToggleSelectTask={toggleTaskSelection}
+                    viewMode={viewMode}
                   />
                 </div>
               ))}
@@ -622,6 +688,7 @@ export default function Home() {
                       isSelectionMode={isSelectionMode}
                       selectedTaskIds={selectedTaskIds}
                       onToggleSelectTask={toggleTaskSelection}
+                      viewMode={viewMode}
                     />
                   </div>
                 )
@@ -631,21 +698,21 @@ export default function Home() {
 
           {/* Keyboard Hints (Footer) */}
           {!searchQuery && (
-            <div className="mt-12 pt-8 border-t border-slate-200/60 flex justify-center gap-6 text-xs text-slate-400 font-medium">
-              <span className="flex items-center gap-1.5 hover:text-slate-600 transition-colors cursor-help" title="Press N">
-                <kbd className="bg-white border border-slate-200 rounded px-1 min-w-[20px] text-center shadow-[0_1px_0_rgba(0,0,0,0.1)]">N</kbd>
+            <div className="mt-12 pt-8 border-t border-slate-200/60 dark:border-slate-700/60 flex justify-center gap-6 text-xs text-slate-400 dark:text-slate-500 font-medium">
+              <span className="flex items-center gap-1.5 hover:text-slate-600 dark:hover:text-slate-400 transition-colors cursor-help" title="Press N">
+                <kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1 min-w-[20px] text-center shadow-[0_1px_0_rgba(0,0,0,0.1)]">N</kbd>
                 New Task
               </span>
-              <span className="flex items-center gap-1.5 hover:text-slate-600 transition-colors cursor-help" title="Press V">
-                <kbd className="bg-white border border-slate-200 rounded px-1 min-w-[20px] text-center shadow-[0_1px_0_rgba(0,0,0,0.1)]">V</kbd>
+              <span className="flex items-center gap-1.5 hover:text-slate-600 dark:hover:text-slate-400 transition-colors cursor-help" title="Press V">
+                <kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1 min-w-[20px] text-center shadow-[0_1px_0_rgba(0,0,0,0.1)]">V</kbd>
                 New Version
               </span>
-              <span className="flex items-center gap-1.5 hover:text-slate-600 transition-colors cursor-help" title="Press /">
-                <kbd className="bg-white border border-slate-200 rounded px-1 min-w-[20px] text-center shadow-[0_1px_0_rgba(0,0,0,0.1)]">/</kbd>
+              <span className="flex items-center gap-1.5 hover:text-slate-600 dark:hover:text-slate-400 transition-colors cursor-help" title="Press /">
+                <kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1 min-w-[20px] text-center shadow-[0_1px_0_rgba(0,0,0,0.1)]">/</kbd>
                 Search
               </span>
-              <span className="flex items-center gap-1.5 hover:text-slate-600 transition-colors cursor-help" title="Press ?">
-                <kbd className="bg-white border border-slate-200 rounded px-1 min-w-[20px] text-center shadow-[0_1px_0_rgba(0,0,0,0.1)]">?</kbd>
+              <span className="flex items-center gap-1.5 hover:text-slate-600 dark:hover:text-slate-400 transition-colors cursor-help" title="Press ?">
+                <kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1 min-w-[20px] text-center shadow-[0_1px_0_rgba(0,0,0,0.1)]">?</kbd>
                 Shortcuts
               </span>
             </div>
@@ -665,6 +732,13 @@ export default function Home() {
         <CommandPalette
           commands={commands}
           onClose={() => setShowCommandPalette(false)}
+          contextData={{
+            project: selectedProject,
+            versions: versions,
+            tasks: tasks,
+            activities: activities,
+            latestDump: latestDump
+          }}
         />
       )}
 
@@ -704,6 +778,16 @@ export default function Home() {
         />
       )}
 
+      {/* Context Dump Modal */}
+      {showContextDumpModal && selectedProject && (
+        <ContextDumpModal
+          projectName={selectedProject.name}
+          latestDump={latestDump}
+          onSave={createContextDump}
+          onClose={() => setShowContextDumpModal(false)}
+        />
+      )}
+
       {/* Floating Bulk Action Bar */}
       {selectedTaskIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 lg:ml-32 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-200">
@@ -736,8 +820,8 @@ export default function Home() {
 function ShortcutsModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="font-semibold text-slate-800 mb-4">Keyboard Shortcuts</h3>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+        <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-4">Keyboard Shortcuts</h3>
         <div className="space-y-2 text-sm">
           {[
             ['N', 'Add new task'],
@@ -750,8 +834,8 @@ function ShortcutsModal({ onClose }: { onClose: () => void }) {
             ['Esc', 'Close / Cancel'],
           ].map(([key, desc]) => (
             <div key={key} className="flex items-center justify-between">
-              <span className="text-slate-600">{desc}</span>
-              <kbd className="px-2 py-1 bg-slate-100 rounded text-slate-700 font-mono text-xs">{key}</kbd>
+              <span className="text-slate-600 dark:text-slate-400">{desc}</span>
+              <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300 font-mono text-xs">{key}</kbd>
             </div>
           ))}
         </div>

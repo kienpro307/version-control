@@ -55,10 +55,10 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
             )}
 
             {/* Drawer */}
-            <div className={`fixed inset-y-0 right-0 w-full sm:w-[480px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className={`fixed inset-y-0 right-0 w-full sm:w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="h-full flex flex-col">
                     {/* Header */}
-                    <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+                    <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between bg-slate-50/50 dark:bg-slate-800/50">
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={toggleStatus}
@@ -66,11 +66,11 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                             >
                                 {task.isDone ? <CheckCircle2 className="w-6 h-6" /> : <Circle className="w-6 h-6" />}
                             </button>
-                            <div className="text-sm text-slate-500 font-mono">
+                            <div className="text-sm text-slate-500 dark:text-slate-400 font-mono">
                                 {task.id.slice(0, 8)}
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+                        <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
@@ -83,7 +83,7 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                                 type="text"
                                 value={task.content}
                                 onChange={(e) => onUpdate(task.id, { content: e.target.value })}
-                                className="w-full text-xl font-semibold text-slate-800 bg-transparent border-none focus:ring-0 p-0 placeholder-slate-300"
+                                className="w-full text-xl font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-none focus:ring-0 p-0 placeholder-slate-300 dark:placeholder-slate-600"
                                 placeholder="Task title"
                             />
                         </div>
@@ -112,7 +112,7 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                                 <span className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                     <Calendar className="w-3 h-3" /> Created
                                 </span>
-                                <span className="text-xs text-slate-600 font-medium">
+                                <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
                                     {new Date(task.createdAt).toLocaleDateString()}
                                 </span>
                             </div>
@@ -131,7 +131,7 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                             </div>
 
                             {isPreview ? (
-                                <div className="prose prose-sm prose-slate max-w-none bg-slate-50 p-4 rounded-xl min-h-[150px] border border-slate-100">
+                                <div className="prose prose-sm prose-slate dark:prose-invert max-w-none bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl min-h-[150px] border border-slate-100 dark:border-slate-800">
                                     <ReactMarkdown>
                                         {description || '*No description provided*'}
                                     </ReactMarkdown>
@@ -142,7 +142,7 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                                     onChange={(e) => setDescription(e.target.value)}
                                     onBlur={handleSaveDescription}
                                     placeholder="Add a detailed description... (Markdown supported)"
-                                    className="w-full h-40 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-y"
+                                    className="w-full h-40 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-y placeholder-slate-400"
                                 />
                             )}
                         </div>
@@ -155,7 +155,7 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                             <div className="flex flex-wrap gap-2">
                                 <div className="flex flex-wrap gap-2 items-center">
                                     {(task.labels || []).map(label => (
-                                        <span key={label} className="group flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full border border-slate-200">
+                                        <span key={label} className="group flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium rounded-full border border-slate-200 dark:border-slate-700">
                                             {label}
                                             <button
                                                 onClick={() => {
@@ -173,7 +173,7 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                                         <input
                                             type="text"
                                             placeholder="+ Label"
-                                            className="w-20 px-2 py-1 text-xs bg-transparent border border-dashed border-slate-300 rounded-full focus:w-32 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none transition-all placeholder-slate-400"
+                                            className="w-20 px-2 py-1 text-xs bg-transparent border border-dashed border-slate-300 dark:border-slate-600 rounded-full focus:w-32 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none transition-all placeholder-slate-400 text-slate-600 dark:text-slate-300"
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') {
                                                     const val = e.currentTarget.value.trim();
@@ -191,8 +191,8 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                     </div>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-                        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">
+                    <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-end">
+                        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">
                             Close
                         </button>
                     </div>

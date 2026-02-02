@@ -56,9 +56,14 @@ export async function POST(
         .eq('project_id', projectId);
 
     // Create new active version
+    const insertData: any = { project_id: projectId, name, is_active: true };
+    if (body.createdAt) {
+        insertData.created_at = body.createdAt;
+    }
+
     const { data, error } = await supabase
         .from('versions')
-        .insert({ project_id: projectId, name, is_active: true })
+        .insert(insertData)
         .select()
         .single();
 

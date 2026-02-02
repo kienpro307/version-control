@@ -81,3 +81,29 @@ CREATE INDEX IF NOT EXISTS idx_activities_created ON activities(created_at DESC)
 
 ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for activities" ON activities FOR ALL USING (true) WITH CHECK (true);
+
+-- =============================================
+-- 6. Context Dumps table (Mental Model Store)
+-- Stores "brain dumps" for AI Agent context continuity
+-- =============================================
+CREATE TABLE IF NOT EXISTS context_dumps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  mental_model TEXT,                    -- Current logic structure description
+  next_step_prompt TEXT,                -- Prompt to "prime" next session
+  last_artifacts JSONB DEFAULT '{}',    -- Links/summaries of Antigravity artifacts
+  workspace_location TEXT DEFAULT 'office', -- 'office' | 'home'
+  is_read BOOLEAN DEFAULT false,        -- Mark as read when loaded
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_context_dumps_project ON context_dumps(project_id);
+CREATE INDEX IF NOT EXISTS idx_context_dumps_created ON context_dumps(created_at DESC);
+
+ALTER TABLE context_dumps ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for context_dumps" ON context_dumps FOR ALL USING (true) WITH CHECK (true);
+
+-- =============================================
+-- 7. Add diff_summary to activities (for Agent)
+-- =============================================
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS diff_summary TEXT;

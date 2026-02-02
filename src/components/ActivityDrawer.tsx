@@ -30,9 +30,9 @@ export default function ActivityDrawer({ isOpen, onClose, activities, loading }:
             case 'complete_task': return <CheckCircle2 className="w-4 h-4 text-blue-500" />;
             case 'reopen_task': return <Clock className="w-4 h-4 text-amber-500" />;
             case 'delete_task': return <Trash2 className="w-4 h-4 text-red-500" />;
-            case 'create_version': return <GitCommit className="w-4 h-4 text-purple-500" />;
-            case 'release_version': return <Archive className="w-4 h-4 text-green-600" />;
-            case 'update_version': return <Edit2 className="w-4 h-4 text-indigo-500" />;
+            case 'create_version': return <GitCommit className="w-4 h-4 text-purple-500 dark:text-purple-400" />;
+            case 'release_version': return <Archive className="w-4 h-4 text-green-600 dark:text-green-500" />;
+            case 'update_version': return <Edit2 className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />;
             default: return <ActivityIcon className="w-4 h-4 text-slate-400" />;
         }
     };
@@ -43,14 +43,14 @@ export default function ActivityDrawer({ isOpen, onClose, activities, loading }:
                 <div className="fixed inset-0 bg-black/20 z-40 transition-opacity" onClick={onClose} />
             )}
 
-            <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="h-full flex flex-col">
-                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                        <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                            <Clock className="w-5 h-5 text-slate-500" />
+                    <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+                        <h2 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                            <Clock className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                             Activity Log
                         </h2>
-                        <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+                        <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
@@ -69,22 +69,29 @@ export default function ActivityDrawer({ isOpen, onClose, activities, loading }:
                             <div className="space-y-8">
                                 {Object.entries(groupedActivities).map(([date, items]) => (
                                     <div key={date}>
-                                        <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-1">
+                                        <div className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 dark:border-slate-800 pb-1">
                                             {date}
                                         </div>
-                                        <div className="relative border-l-2 border-slate-100 ml-3 space-y-6 pb-2">
+                                        <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-3 space-y-6 pb-2">
                                             {items.map((activity) => (
                                                 <div key={activity.id} className="relative pl-6">
-                                                    <div className="absolute -left-[9px] top-0 bg-white p-0.5 rounded-full border border-slate-200">
+                                                    <div className="absolute -left-[9px] top-0 bg-white dark:bg-slate-900 p-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                                                         {getIcon(activity.action_type)}
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-medium text-slate-800">
+                                                        <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
                                                             {activity.description || 'Performed an action'}
                                                         </div>
                                                         <div className="text-xs text-slate-400 mt-1">
                                                             {new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </div>
+                                                        {activity.diff_summary && (
+                                                            <div className="mt-2 p-2 bg-slate-900 rounded-md overflow-x-auto">
+                                                                <pre className="text-xs font-mono text-emerald-400 whitespace-pre-wrap">
+                                                                    {activity.diff_summary}
+                                                                </pre>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}

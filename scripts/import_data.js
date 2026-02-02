@@ -1,6 +1,5 @@
-const fetch = require('node-fetch');
-
-const API_URL = 'https://version-control-kappa.vercel.app/api';
+// Native fetch (Node 18+)
+const API_URL = 'http://localhost:3000/api';
 const API_KEY = 'mvm_sk_live_FobxzQGHr9FHiVH60XCNlpPjawt19oQ3';
 const PROJECT_NAME = 'All Translate React Native';
 
@@ -118,7 +117,7 @@ ver26
 - [x]  Thêm ab testing bỏ limit khi dịch file sample
     - [x]  Sửa logic không hiện popup khi dịch file sample
     - [x]  Đổi UI màn sample
-- [x]  Rollback lại quảng cáo inter bản 24
+- [x]  Rollback lại quảng cáo inter bản 26
 - [x]  Bỏ button mic
 
 ver27
@@ -356,9 +355,29 @@ ver 74
 `;
 
 async function main() {
-    console.log('🚀 Starting import...');
+    console.log('🚀 Starting re-import with timestamps...');
 
-    // 1. Create Project
+    // 1. Search for existing project
+    const searchRes = await fetch(`${API_URL}/search?q=${encodeURIComponent(PROJECT_NAME)}&type=projects`, {
+        headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    const searchData = await searchRes.json();
+    const existing = searchData.data?.projects?.find(p => p.name === PROJECT_NAME);
+
+    if (existing) {
+        console.log(`⚠️ Found existing project ${existing.id}. Deleting...`);
+        const delRes = await fetch(`${API_URL}/projects/${existing.id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${API_KEY}` }
+        });
+        if (!delRes.ok) {
+            console.error('❌ Failed to delete existing project. Proceeding anyway, might duplicate.');
+        } else {
+            console.log('✅ Deleted existing project.');
+        }
+    }
+
+    // 2. Create Project
     console.log(`Creating project: ${PROJECT_NAME}...`);
     const projectRes = await fetch(`${API_URL}/projects`, {
         method: 'POST',
@@ -368,24 +387,6 @@ async function main() {
 
     const projectData = await projectRes.json();
     if (!projectData.success) {
-        if (projectData.error?.message?.includes('duplicate key')) {
-            console.warn('⚠️ Project might already exist, attempting to find it...');
-            // Simple fallback: search for it (assuming search API or just proceed if we had ID)
-            // For now, let's just error out or we need to fetch list to find ID.
-            // Let's search for it.
-            const searchRes = await fetch(`${API_URL}/search?q=${encodeURIComponent(PROJECT_NAME)}&type=projects`, {
-                headers: { 'Authorization': `Bearer ${API_KEY}` }
-            });
-            const searchData = await searchRes.json();
-            const existing = searchData.data?.projects?.find(p => p.name === PROJECT_NAME);
-            if (existing) {
-                console.log(`✅ Found existing project: ${existing.id}`);
-                importVersions(existing.id);
-                return;
-            }
-            console.error('❌ Could not create or find project:', projectData);
-            return;
-        }
         console.error('❌ Failed to create project:', projectData);
         return;
     }
@@ -398,18 +399,25 @@ async function main() {
 async function importVersions(projectId) {
     const versions = parseData(RAW_DATA);
 
-    // Create versions sequentially to maintain order (though created_at handles sort, safe to go old->new)
-    // The data lists old to new (14 -> 74).
-    // We should create them in that order.
+    // Strategy: Start from ~3 months ago.
+    // Increment by ~3 days per version.
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - (versions.length * 3)); // 3 days per version roughly
 
-    for (const v of versions) {
-        console.log(`\n📦 Importing Version ${v.name}...`);
+    for (let i = 0; i < versions.length; i++) {
+        const v = versions[i];
 
-        // Create Version
+        // Calculate timestamp
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + (i * 3));
+        const createdAt = date.toISOString();
+
+        console.log(`\n📦 Importing ${v.name}...`);
+
         const verRes = await fetch(`${API_URL}/projects/${projectId}/versions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
-            body: JSON.stringify({ name: v.name, migratePendingTasks: false })
+            body: JSON.stringify({ name: v.name, migratePendingTasks: false, createdAt })
         });
 
         const verData = await verRes.json();
@@ -419,18 +427,19 @@ async function importVersions(projectId) {
         }
 
         const versionId = verData.data.id;
-        console.log(`   ✅ Version created: ${versionId}`);
+        console.log(`   ✅ Version created: ${versionId} (${createdAt})`);
 
-        // Bulk Create Tasks
         if (v.tasks.length > 0) {
             console.log(`   📝 Importing ${v.tasks.length} tasks...`);
 
             const operations = v.tasks.map(param => ({
                 action: 'create',
                 projectId,
-                versionId, // Directly link to this version
+                versionId,
                 content: param.content,
-                isDone: param.isDone
+                isDone: param.isDone,
+                createdAt: createdAt,
+                doneAt: param.isDone ? createdAt : undefined
             }));
 
             const bulkRes = await fetch(`${API_URL}/tasks/bulk`, {
@@ -441,7 +450,7 @@ async function importVersions(projectId) {
 
             const bulkData = await bulkRes.json();
             if (bulkData.success) {
-                console.log(`   ✅ Success: ${bulkData.data.created} created, ${bulkData.data.failed} failed`);
+                console.log(`   ✅ Success: ${bulkData.data.created} created`);
             } else {
                 console.error('   ❌ Bulk import failed:', bulkData);
             }
@@ -457,17 +466,18 @@ function parseData(text) {
     let currentVersion = null;
 
     const versionRegex = /^ver\s*(\d+.*)/i;
-    // Regex to match task: optional indentation, - [x] or - [ ], content
-    const taskRegex = /^(\s*)-\s*\[([ x])\]\s*(.+)/i;
+    // Match check lists: - [x] or - [ ] 
+    // Captures: 1=indent, 2=x or space, 3=content
+    const taskRegex = /^(\s*)-\s*\[([ xX])\]\s*(.+)/;
 
     for (let line of lines) {
-        line = line.trimEnd(); // Keep leading spaces for nesting detection
+        line = line.trimEnd();
         if (!line.trim()) continue;
 
         const verMatch = line.trim().match(versionRegex);
         if (verMatch) {
             currentVersion = {
-                name: `Version ${verMatch[1]}`, // Normalize name
+                name: `Version ${verMatch[1]}`,
                 tasks: []
             };
             versions.push(currentVersion);
@@ -476,24 +486,15 @@ function parseData(text) {
 
         const taskMatch = line.match(taskRegex);
         if (taskMatch) {
-            if (!currentVersion) {
-                // Task before any version? Skip or create default? 
-                // User data starts with Ver 14, so it should be fine.
-                continue;
-            }
+            if (!currentVersion) continue;
 
             const indent = taskMatch[1];
             const isChecked = taskMatch[2].toLowerCase() === 'x';
             let content = taskMatch[3];
 
-            // Handle nesting visually by adding prefix dots if indented
-            if (indent.length >= 2) { // 4 spaces or tab
-                // content = '↳ ' + content; // or just indent
-                // To keep it clean in UI, maybe just keep as is?
-                // User UI supports flat list properly.
-                // Let's just prepend "  " to content.
-                content = "    " + content;
-            }
+            // Preserve some hierarchical structure visually if needed, though API flat.
+            // If indented, maybe prefix with arrow or indent.
+            if (indent.length >= 2) content = "    " + content;
 
             currentVersion.tasks.push({
                 content,

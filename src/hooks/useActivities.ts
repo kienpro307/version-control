@@ -9,9 +9,11 @@ export interface Activity {
     entity_type: string;
     entity_id: string;
     description?: string;
+    diff_summary?: string;
     metadata: any;
     created_at: string;
 }
+
 
 export function useActivities(projectId: string | null) {
     const [activities, setActivities] = useState<Activity[]>([]);
@@ -43,7 +45,8 @@ export function useActivities(projectId: string | null) {
         entity_id: string,
         description?: string,
         metadata: any = {},
-        overrideProjectId?: string
+        overrideProjectId?: string,
+        diff_summary?: string
     ) => {
         const pid = overrideProjectId || projectId;
         if (!pid) return;
@@ -54,6 +57,7 @@ export function useActivities(projectId: string | null) {
             entity_type,
             entity_id,
             description,
+            diff_summary,
             metadata
         });
 

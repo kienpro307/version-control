@@ -1,0 +1,11 @@
+name = "my-version-manager-mcp"
+main = "src/index.ts"
+compatibility_date = "2024-02-08"
+compatibility_flags = ["nodejs_compat"]
+
+# Variables will be set via secrets for security
+# [vars]
+# SUPABASE_URL = "..."
+
+[observability]
+enabled = true

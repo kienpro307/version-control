@@ -9,6 +9,8 @@ interface BulkOperation {
     versionId?: string;
     content?: string;
     isDone?: boolean;
+    createdAt?: string;
+    doneAt?: string;
 }
 
 interface OperationResult {
@@ -62,14 +64,19 @@ export async function POST(request: NextRequest) {
                         targetVersionId = activeVersion?.id || undefined;
                     }
 
+                    const insertData: any = {
+                        project_id: op.projectId,
+                        version_id: targetVersionId || null,
+                        content: op.content,
+                        is_done: op.isDone || false,
+                    };
+
+                    if (op.createdAt) insertData.created_at = op.createdAt;
+                    if (op.doneAt) insertData.done_at = op.doneAt;
+
                     const { data, error } = await supabase
                         .from('tasks')
-                        .insert({
-                            project_id: op.projectId,
-                            version_id: targetVersionId || null,
-                            content: op.content,
-                            is_done: false,
-                        })
+                        .insert(insertData)
                         .select()
                         .single();
 

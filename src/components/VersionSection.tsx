@@ -6,6 +6,7 @@ import { Version, Task } from '@/lib/types';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
+import { useDroppable } from '@dnd-kit/core';
 
 interface VersionSectionProps {
     version: Version;
@@ -25,6 +26,7 @@ interface VersionSectionProps {
     isSelectionMode?: boolean;
     selectedTaskIds?: Set<string>;
     onToggleSelectTask?: (taskId: string) => void;
+    viewMode?: 'list' | 'board';
 }
 
 export default function VersionSection({
@@ -45,6 +47,7 @@ export default function VersionSection({
     isSelectionMode = false,
     selectedTaskIds = new Set(),
     onToggleSelectTask = () => { },
+    viewMode = 'list',
 }: VersionSectionProps) {
     const [newTaskContent, setNewTaskContent] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -63,6 +66,10 @@ export default function VersionSection({
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const { setNodeRef } = useDroppable({
+        id: version.id,
+    });
 
     // Focus name input when editing starts
     useEffect(() => {
@@ -110,139 +117,142 @@ export default function VersionSection({
             : 'border-l-slate-400';
 
     return (
-        <div className={`bg-white border border-l-4 rounded-xl shadow-sm hover:shadow-md transition-shadow ${borderColor} ${isUnassigned ? 'border-amber-200' : version.isActive ? 'border-emerald-200' : 'border-slate-200'}`}>
+        <div className={`bg-white dark:bg-slate-900 border border-l-4 rounded-xl shadow-sm hover:shadow-md transition-shadow ${borderColor} ${isUnassigned ? 'border-amber-200 dark:border-amber-900/50' : version.isActive ? 'border-emerald-200 dark:border-emerald-900/50' : 'border-slate-200 dark:border-slate-800'}`}>
+            {/* Header */}
             {/* Header */}
             <div
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors relative ${isUnassigned ? 'bg-amber-50/50 hover:bg-amber-50' : version.isActive ? 'bg-emerald-50/50 hover:bg-emerald-50' : 'bg-slate-50/50 hover:bg-slate-50'}`}
+                className={`w-full px-4 py-3 transition-colors relative ${isUnassigned ? 'bg-amber-50/50 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20' : version.isActive ? 'bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/20' : 'bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
             >
-                <button
-                    onClick={onToggle}
-                    className={`transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
-                >
-                    <ChevronDown className="w-4 h-4 text-slate-500" />
-                </button>
-
-                {isEditingName ? (
-                    <input
-                        ref={nameInputRef}
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onBlur={handleSaveName}
-                        onKeyDown={handleKeyDownName}
-                        className="font-mono font-semibold text-slate-800 bg-white border border-blue-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-48"
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                ) : (
-                    <span
-                        className={`font-mono font-semibold ${isUnassigned ? 'text-amber-700' : version.isActive ? 'text-emerald-700' : 'text-slate-600'}`}
-                        onDoubleClick={() => {
-                            if (!isUnassigned && onUpdateVersion) setIsEditingName(true);
-                        }}
-                        title={!isUnassigned && onUpdateVersion ? "Double click to rename" : ""}
+                {/* Main Header Row */}
+                <div className={`flex items-center gap-3 ${viewMode === 'board' ? 'mb-2' : ''}`}>
+                    <button
+                        onClick={onToggle}
+                        className={`transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'} shrink-0`}
                     >
-                        {version.name}
-                    </span>
-                )}
+                        <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                    </button>
 
-                {version.isActive && !isUnassigned && (
-                    <span className="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">🚀 Active</span>
-                )}
-                {!version.isActive && !isUnassigned && (
-                    <span className="px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded-full">✅ Released</span>
-                )}
-                {isUnassigned && (
-                    <span className="px-2.5 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">📋 Backlog</span>
-                )}
-
-                <div className="ml-auto flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2">
-                        <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full transition-all duration-500 ${progressPercent === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                                style={{ width: `${progressPercent}%` }}
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                        {isEditingName ? (
+                            <input
+                                ref={nameInputRef}
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                onBlur={handleSaveName}
+                                onKeyDown={handleKeyDownName}
+                                className="font-mono font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-700 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full"
+                                onClick={(e) => e.stopPropagation()}
                             />
-                        </div>
-                        <span className={`text-xs font-medium ${progressPercent === 100 ? 'text-emerald-600' : 'text-slate-500'}`}>
-                            {progressPercent}%
-                        </span>
-                    </div>
-                    <span className="text-sm text-slate-500 font-medium mr-2">
-                        {doneCount}/{totalCount}
-                    </span>
-
-                    {/* Version Actions Menu */}
-                    {!isUnassigned && (
-                        <div className="relative" ref={menuRef}>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsMenuOpen(!isMenuOpen);
+                        ) : (
+                            <span
+                                className={`font-mono font-semibold truncate block ${isUnassigned ? 'text-amber-700 dark:text-amber-500' : version.isActive ? 'text-emerald-700 dark:text-emerald-500' : 'text-slate-700 dark:text-slate-300'} ${viewMode === 'board' ? 'text-base' : 'text-sm'}`}
+                                onDoubleClick={() => {
+                                    if (!isUnassigned && onUpdateVersion) setIsEditingName(true);
                                 }}
-                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-lg transition-colors"
+                                title={!isUnassigned && onUpdateVersion ? "Double click to rename" : ""}
                             >
-                                <MoreVertical className="w-4 h-4" />
-                            </button>
+                                {version.name}
+                            </span>
+                        )}
+                    </div>
 
-                            {isMenuOpen && (
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-100 z-50 animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
-                                    {!version.isActive && onSetActiveVersion && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onSetActiveVersion(version.id);
-                                                setIsMenuOpen(false);
-                                            }}
-                                            className="w-full text-left px-4 py-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50 flex items-center gap-2"
-                                        >
-                                            <Rocket className="w-4 h-4" /> Set as Active
-                                        </button>
-                                    )}
+                    {/* Menu Button (Always visible on right for Board, or desktop List) */}
+                    <div className="shrink-0 relative" ref={menuRef}>
+                        {!isUnassigned && (
+                            <>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsMenuOpen(!isMenuOpen);
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
+                                >
+                                    <MoreVertical className="w-4 h-4" />
+                                </button>
+                                {isMenuOpen && (
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-100 dark:border-slate-800 z-50 animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                                        {!version.isActive && onSetActiveVersion && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onSetActiveVersion(version.id); setIsMenuOpen(false); }}
+                                                className="w-full text-left px-4 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center gap-2"
+                                            >
+                                                <Rocket className="w-4 h-4" /> Set as Active
+                                            </button>
+                                        )}
+                                        {onGenerateChangelog && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onGenerateChangelog(); setIsMenuOpen(false); }}
+                                                className="w-full text-left px-4 py-2 text-xs font-medium text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2"
+                                            >
+                                                <FileText className="w-4 h-4" /> View Changelog
+                                            </button>
+                                        )}
+                                        {onUpdateVersion && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setIsEditingName(true); setIsMenuOpen(false); }}
+                                                className="w-full text-left px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2"
+                                            >
+                                                <Pencil className="w-4 h-4" /> Rename Version
+                                            </button>
+                                        )}
+                                        <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+                                        {onDeleteVersion && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); if (confirm('Delete version?')) onDeleteVersion(version.id); setIsMenuOpen(false); }}
+                                                className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                                            >
+                                                <Trash2 className="w-4 h-4" /> Delete Version
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
 
-                                    {onGenerateChangelog && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onGenerateChangelog();
-                                                setIsMenuOpen(false);
-                                            }}
-                                            className="w-full text-left px-4 py-2 text-xs font-medium text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                                        >
-                                            <FileText className="w-4 h-4" /> view Changelog
-                                        </button>
-                                    )}
+                {/* Meta Row (Badges, Date, Progress) */}
+                <div className={`flex items-center gap-2 ${viewMode === 'board' ? 'justify-between w-full pl-7' : 'ml-auto'}`}>
+                    {/* Left side Metadata (Badges, Date) */}
+                    <div className={`flex items-center gap-2 ${viewMode === 'list' ? 'hidden sm:flex' : ''}`}>
+                        {version.isActive && !isUnassigned && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-full uppercase tracking-wide">Active</span>
+                        )}
+                        {!version.isActive && !isUnassigned && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full uppercase tracking-wide">Released</span>
+                        )}
+                        {isUnassigned && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-full uppercase tracking-wide">Backlog</span>
+                        )}
 
-                                    {onUpdateVersion && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsEditingName(true);
-                                                setIsMenuOpen(false);
-                                            }}
-                                            className="w-full text-left px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-                                        >
-                                            <Pencil className="w-4 h-4" /> Rename Version
-                                        </button>
-                                    )}
+                        {!isUnassigned && (
+                            <span className="px-2 py-0.5 text-[10px] text-slate-400 dark:text-slate-500 font-medium bg-white/50 dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-800" title={new Date(version.createdAt).toLocaleString()}>
+                                {new Date(version.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </span>
+                        )}
+                    </div>
 
-                                    <div className="h-px bg-slate-100 my-1" />
-
-                                    {onDeleteVersion && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (confirm('Are you sure you want to delete this version? All included tasks will be deleted.')) {
-                                                    onDeleteVersion(version.id);
-                                                }
-                                                setIsMenuOpen(false);
-                                            }}
-                                            className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                        >
-                                            <Trash2 className="w-4 h-4" /> Delete Version
-                                        </button>
-                                    )}
+                    {/* Right side Metadata (Progress) */}
+                    {viewMode === 'list' && (
+                        <div className="ml-auto flex items-center gap-3">
+                            {/* Only show progress on Desktop List */}
+                            <div className="hidden sm:flex items-center gap-2">
+                                <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div className={`h-full transition-all duration-500 ${progressPercent === 100 ? 'bg-emerald-500 dark:bg-emerald-500' : 'bg-blue-500 dark:bg-blue-600'}`} style={{ width: `${progressPercent}%` }} />
                                 </div>
-                            )}
+                                <span className={`text-xs font-medium ${progressPercent === 100 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}>{progressPercent}%</span>
+                            </div>
+                            <span className="text-sm text-slate-500 dark:text-slate-400 font-medium mr-2">{doneCount}/{totalCount}</span>
+                        </div>
+                    )}
+
+                    {viewMode === 'board' && (
+                        <div className="flex items-center gap-2 ml-auto">
+                            <span className={`text-[10px] font-bold ${progressPercent === 100 ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-500'}`}>{doneCount}/{totalCount}</span>
+                            <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div className={`h-full transition-all duration-500 ${progressPercent === 100 ? 'bg-emerald-500 dark:bg-emerald-500' : 'bg-blue-500 dark:bg-blue-600'}`} style={{ width: `${progressPercent}%` }} />
+                            </div>
                         </div>
                     )}
                 </div>
@@ -250,10 +260,10 @@ export default function VersionSection({
 
             {/* Task Table */}
             {isExpanded && (
-                <div className="border-t border-slate-100">
+                <div ref={setNodeRef} className="border-t border-slate-100 dark:border-slate-800 min-h-[50px]">
                     {sortedTasks.length > 0 ? (
                         <SortableContext items={sortedTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                            <div className="divide-y divide-slate-100">
+                            <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {sortedTasks.map(task => (
                                     <SortableTaskRow
                                         key={task.id}
@@ -270,14 +280,14 @@ export default function VersionSection({
                             </div>
                         </SortableContext>
                     ) : (
-                        <div className="px-4 py-6 text-center text-slate-400 text-sm">
+                        <div className="px-4 py-6 text-center text-slate-400 dark:text-slate-500 text-sm">
                             No tasks in this version
                         </div>
                     )}
 
                     {/* Add Task Input */}
-                    <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-t border-slate-100">
-                        <Plus className="w-4 h-4 text-slate-400" />
+                    <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                        <Plus className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                         <input
                             data-add-task
                             type="text"
@@ -285,12 +295,12 @@ export default function VersionSection({
                             onChange={e => setNewTaskContent(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleAddTask()}
                             placeholder="Add task..."
-                            className="flex-1 bg-transparent text-sm placeholder-slate-400 focus:outline-none"
+                            className="flex-1 bg-transparent text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none dark:text-slate-200"
                         />
                         {newTaskContent && (
                             <button
                                 onClick={handleAddTask}
-                                className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-all shadow-sm"
+                                className="px-4 py-2 text-sm font-semibold bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 active:bg-blue-800 transition-all shadow-sm"
                             >
                                 Add Task
                             </button>
@@ -332,11 +342,11 @@ function SortableTaskRow(props: TaskRowProps) {
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="group/sortable flex relative bg-white">
+        <div ref={setNodeRef} style={style} className="group/sortable flex relative bg-white dark:bg-slate-900">
             <div
                 {...attributes}
                 {...listeners}
-                className="flex items-center justify-center w-8 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 absolute left-0 top-0 bottom-0 z-10 opacity-0 group-hover/sortable:opacity-100 transition-opacity"
+                className="flex items-center justify-center w-8 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 absolute left-0 top-0 bottom-0 z-10 opacity-0 group-hover/sortable:opacity-100 transition-opacity"
             >
                 <GripVertical size={14} />
             </div>
@@ -382,7 +392,7 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
     };
 
     return (
-        <div className={`group flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/50' : ''}`}>
+        <div className={`group flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isSelected ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
 
             {/* Selection Checkbox */}
             {isSelectionMode && (
@@ -391,7 +401,7 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
                         type="checkbox"
                         checked={isSelected}
                         onChange={onToggleSelect}
-                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        className="w-5 h-5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer bg-white dark:bg-slate-800"
                     />
                 </div>
             )}
@@ -405,8 +415,8 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
                         transition-all duration-150 ease-out
                         active:scale-90
                         ${task.isDone
-                            ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
-                            : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'
+                            ? 'text-emerald-600 dark:text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                            : 'text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
                         }
                     `}
                     title={task.isDone ? 'Mark as pending' : 'Mark as done'}
@@ -423,39 +433,39 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
                     onChange={e => setEditContent(e.target.value)}
                     onBlur={handleSave}
                     onKeyDown={handleKeyDown}
-                    className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-2 py-1 text-sm border border-blue-300 dark:border-blue-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 />
             ) : (
                 <span
                     onDoubleClick={() => setIsEditing(true)}
-                    className={`flex-1 text-sm cursor-text ${task.isDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                    className={`flex-1 text-sm cursor-text ${task.isDone ? 'text-slate-400 dark:text-slate-500 line-through decoration-slate-400 dark:decoration-slate-500' : 'text-slate-700 dark:text-slate-300'}`}
                 >
                     {task.content}
                 </span>
             )}
 
-            <span className="text-xs text-slate-400 hidden sm:block">
+            <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">
                 {formatDate(task.doneAt || task.createdAt)}
             </span>
 
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                     onClick={() => onOpen(task)}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-all"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-100 transition-all"
                     title="Open Details"
                 >
                     <Maximize2 className="w-4 h-4" />
                 </button>
                 <button
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-all"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-100 transition-all"
                     title="Edit (E)"
                 >
                     <Pencil className="w-4 h-4" />
                 </button>
                 <button
                     onClick={() => onDelete(task.id)}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 active:bg-red-100 transition-all"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-100 transition-all"
                     title="Delete"
                 >
                     <Trash2 className="w-4 h-4" />

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { X, Copy, Check, FileText, Download } from 'lucide-react';
+import { X, Copy, Check, FileText, Download, Sparkles, GitCommit, List } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Version, Task } from '@/lib/types';
+import PromptPreviewModal from './PromptPreviewModal';
+import { generateAgentPrompts } from '@/lib/promptGenerator';
 
 interface ChangelogModalProps {
     version: Version;
@@ -13,12 +15,17 @@ interface ChangelogModalProps {
 }
 
 type ChangelogFormat = 'markdown' | 'plain' | 'html';
+type ChangelogSource = 'auto' | 'manual';
 
 export default function ChangelogModal({ version, tasks, onClose, onRelease }: ChangelogModalProps) {
+    const [source, setSource] = useState<ChangelogSource>('auto');
     const [format, setFormat] = useState<ChangelogFormat>('markdown');
     const [copied, setCopied] = useState(false);
     const [includeDate, setIncludeDate] = useState(true);
     const [groupByPriority, setGroupByPriority] = useState(false);
+    const [showPromptPreview, setShowPromptPreview] = useState(false);
+    const [manualInput, setManualInput] = useState('');
+    const [generatedPrompt, setGeneratedPrompt] = useState<{ title: string; content: string } | null>(null);
 
     const completedTasks = useMemo(() => tasks.filter(t => t.isDone), [tasks]);
     const pendingTasks = useMemo(() => tasks.filter(t => !t.isDone), [tasks]);
@@ -29,6 +36,17 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
             month: 'long',
             day: 'numeric'
         });
+
+        if (source === 'manual') {
+            // Simple pass-through or basic formatting for manual input
+            if (format === 'markdown') {
+                return `## ${version.name}${includeDate ? ` - ${date}` : ''}\n\n${manualInput || '(No content)'}`;
+            } else if (format === 'plain') {
+                return `${version.name}${includeDate ? ` - ${date}` : ''}\n${'='.repeat(version.name.length + (includeDate ? date.length + 3 : 0))}\n\n${manualInput || '(No content)'}`;
+            } else {
+                return `<h2>${version.name}${includeDate ? ` <small>${date}</small>` : ''}</h2>\n<p>${(manualInput || '(No content)').replace(/\n/g, '<br/>')}</p>`;
+            }
+        }
 
         let content = '';
 
@@ -121,7 +139,7 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
         }
 
         return content;
-    }, [version, completedTasks, pendingTasks, format, includeDate, groupByPriority]);
+    }, [version, completedTasks, pendingTasks, format, includeDate, groupByPriority, source, manualInput]);
 
     const handleCopy = async () => {
         await navigator.clipboard.writeText(generateChangelog);
@@ -140,39 +158,80 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
         URL.revokeObjectURL(url);
     };
 
+    const handleGenerateAgentPrompt = () => {
+        let prompt = '';
+        if (source === 'manual') {
+            prompt = `Based on the following commit messages/notes for version "${version.name}", please generate a polished changelog:\n\n${manualInput}`;
+        } else {
+            prompt = generateAgentPrompts.changelogDraft(version, completedTasks);
+        }
+
+        setGeneratedPrompt({
+            title: `Changelog for ${version.name}`,
+            content: prompt
+        });
+        setShowPromptPreview(true);
+    };
+
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
+                className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800/50">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                            <FileText className="w-5 h-5 text-emerald-600" />
+                        <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
                         </div>
                         <div>
-                            <h2 className="font-bold text-slate-800 text-lg">Changelog Generator</h2>
-                            <p className="text-sm text-slate-500">{version.name} • {completedTasks.length} completed, {pendingTasks.length} pending</p>
+                            <h2 className="font-bold text-slate-800 dark:text-slate-100 text-lg">Changelog Generator</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{version.name} • {completedTasks.length} completed</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
+                {/* Source Tabs */}
+                <div className="flex border-b border-slate-100 dark:border-slate-800">
+                    <button
+                        onClick={() => setSource('auto')}
+                        className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${source === 'auto'
+                                ? 'text-emerald-600 dark:text-emerald-500 bg-white dark:bg-slate-900'
+                                : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                    >
+                        <List className="w-4 h-4" />
+                        From Tasks
+                        {source === 'auto' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />}
+                    </button>
+                    <button
+                        onClick={() => setSource('manual')}
+                        className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${source === 'manual'
+                                ? 'text-emerald-600 dark:text-emerald-500 bg-white dark:bg-slate-900'
+                                : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                    >
+                        <GitCommit className="w-4 h-4" />
+                        Manual Input
+                        {source === 'manual' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />}
+                    </button>
+                </div>
+
                 {/* Options Bar */}
-                <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center gap-4">
+                <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-4">
                     {/* Format Selector */}
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-slate-500 uppercase">Format:</span>
-                        <div className="flex bg-white border border-slate-200 rounded-lg p-0.5">
+                        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5">
                             {(['markdown', 'plain', 'html'] as const).map(f => (
                                 <button
                                     key={f}
                                     onClick={() => setFormat(f)}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${format === f ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${format === f ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
                                 >
                                     {f.charAt(0).toUpperCase() + f.slice(1)}
                                 </button>
@@ -180,49 +239,73 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
                         </div>
                     </div>
 
-                    {/* Toggles */}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={includeDate}
-                            onChange={e => setIncludeDate(e.target.checked)}
-                            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span className="text-xs text-slate-600">Include date</span>
-                    </label>
 
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={groupByPriority}
-                            onChange={e => setGroupByPriority(e.target.checked)}
-                            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span className="text-xs text-slate-600">Group by priority</span>
-                    </label>
+                    <button
+                        onClick={handleGenerateAgentPrompt}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-semibold hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                    >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        AI Draft
+                    </button>
+
+                    {source === 'auto' && (
+                        <>
+                            {/* Toggles */}
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={includeDate}
+                                    onChange={e => setIncludeDate(e.target.checked)}
+                                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <span className="text-xs text-slate-600 dark:text-slate-400">Date</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={groupByPriority}
+                                    onChange={e => setGroupByPriority(e.target.checked)}
+                                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <span className="text-xs text-slate-600 dark:text-slate-400">Priority</span>
+                            </label>
+                        </>
+                    )}
                 </div>
 
-                {/* Preview */}
-                <div className="flex-1 overflow-y-auto p-6">
-                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Preview</div>
-
-                    {format === 'markdown' ? (
-                        <div className="prose prose-sm prose-slate max-w-none bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <ReactMarkdown>{generateChangelog}</ReactMarkdown>
+                {/* Content Area */}
+                <div className="flex-1 overflow-hidden flex flex-col">
+                    {source === 'manual' ? (
+                        <div className="flex-1 p-6 overflow-y-auto">
+                            <textarea
+                                value={manualInput}
+                                onChange={e => setManualInput(e.target.value)}
+                                placeholder="Paste commit messages, PR titles, or notes here..."
+                                className="w-full h-full min-h-[300px] p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-800 dark:text-slate-200"
+                            />
                         </div>
                     ) : (
-                        <pre className="bg-slate-900 text-slate-100 p-4 rounded-xl text-sm overflow-x-auto font-mono">
-                            {generateChangelog}
-                        </pre>
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Preview</div>
+                            {format === 'markdown' ? (
+                                <div className="prose prose-sm prose-slate dark:prose-invert max-w-none bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <ReactMarkdown>{generateChangelog}</ReactMarkdown>
+                                </div>
+                            ) : (
+                                <pre className="bg-slate-900 dark:bg-slate-950 text-slate-100 p-4 rounded-xl text-sm overflow-x-auto font-mono border border-slate-800 whitespace-pre-wrap">
+                                    {generateChangelog}
+                                </pre>
+                            )}
+                        </div>
                     )}
                 </div>
 
                 {/* Footer Actions */}
-                {/* Footer Actions */}
-                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="text-xs text-slate-400">
-                            {generateChangelog.length} characters
+                            {source === 'manual' ? manualInput.length : generateChangelog.length} characters
                         </div>
                         {version.isActive && onRelease && (
                             <button
@@ -231,30 +314,46 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease }: C
                                         onRelease();
                                     }
                                 }}
-                                className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline"
                             >
                                 🚀 Release Version
                             </button>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleDownload}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                        >
-                            <Download className="w-4 h-4" />
-                            Download
-                        </button>
-                        <button
-                            onClick={handleCopy}
-                            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${copied ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
-                        >
-                            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                            {copied ? 'Copied!' : 'Copy to Clipboard'}
-                        </button>
+                        {source === 'auto' && (
+                            <>
+                                <button
+                                    onClick={handleDownload}
+                                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    Download
+                                </button>
+                                <button
+                                    onClick={handleCopy}
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${copied ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                                >
+                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                    {copied ? 'Copied!' : 'Copy to Clipboard'}
+                                </button>
+                            </>
+                        )}
+                        {source === 'manual' && (
+                            <span className="text-xs text-slate-500 italic">Use "AI Draft" to generate from manual input</span>
+                        )}
                     </div>
                 </div>
             </div>
-        </div>
+            {
+                showPromptPreview && generatedPrompt && (
+                    <PromptPreviewModal
+                        title={generatedPrompt.title}
+                        prompt={generatedPrompt.content}
+                        onClose={() => setShowPromptPreview(false)}
+                    />
+                )
+            }
+        </div >
     );
 }

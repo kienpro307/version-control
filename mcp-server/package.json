@@ -1,0 +1,19 @@
+{
+    "name": "my-version-manager-mcp",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "deploy": "wrangler deploy",
+        "dev": "wrangler dev",
+        "start": "wrangler dev"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.39.0",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20240208.0",
+        "typescript": "^5.3.3",
+        "wrangler": "^3.28.1"
+    }
+}

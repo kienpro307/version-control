@@ -29,3 +29,15 @@ export interface Task {
 export interface Settings {
     lastProjectId: string | null;
 }
+
+export interface Activity {
+    id: string;
+    project_id: string;
+    action_type: string;
+    entity_type: string;
+    entity_id: string | null;
+    description: string | null;
+    diff_summary: string | null;
+    created_at: string;
+    metadata: any;
+}

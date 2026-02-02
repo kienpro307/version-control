@@ -1,7 +1,7 @@
-'use client';
-
-import { useState, useEffect, useRef } from 'react';
-import { Search } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, Sparkles } from 'lucide-react';
+import PromptPreviewModal from './PromptPreviewModal';
+import { generateAgentPrompts } from '@/lib/promptGenerator';
 
 interface Command {
     id: string;
@@ -13,14 +13,55 @@ interface Command {
 interface CommandPaletteProps {
     commands: Command[];
     onClose: () => void;
+    // Extra Data for Agent Commands
+    contextData?: {
+        project?: any;
+        versions?: any[];
+        tasks?: any[];
+        activities?: any[];
+        latestDump?: any;
+    };
 }
 
-export default function CommandPalette({ commands, onClose }: CommandPaletteProps) {
+export default function CommandPalette({ commands, onClose, contextData }: CommandPaletteProps) {
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const [generatedPrompt, setGeneratedPrompt] = useState<{ title: string; content: string } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const filteredCommands = commands.filter(cmd =>
+    const agentCommands: Command[] = useMemo(() => {
+        if (!contextData?.project) return [];
+        return [
+            {
+                id: 'agent-summarize',
+                label: 'Agent: Summarize Project',
+                action: () => {
+                    const prompt = generateAgentPrompts.summarizeProject(
+                        contextData.project,
+                        contextData.versions || [],
+                        contextData.tasks || [],
+                        contextData.activities || []
+                    );
+                    setGeneratedPrompt({ title: 'Project Summary', content: prompt });
+                }
+            },
+            {
+                id: 'agent-next-task',
+                label: 'Agent: Suggest Next Task',
+                action: () => {
+                    const prompt = generateAgentPrompts.nextTaskSuggestion(
+                        contextData.tasks || [],
+                        contextData.latestDump?.mental_model || null
+                    );
+                    setGeneratedPrompt({ title: 'Next Task Suggestion', content: prompt });
+                }
+            }
+        ];
+    }, [contextData]);
+
+    const allCommands = [...agentCommands, ...commands];
+
+    const filteredCommands = allCommands.filter(cmd =>
         cmd.label.toLowerCase().includes(query.toLowerCase())
     );
 
@@ -46,7 +87,10 @@ export default function CommandPalette({ commands, onClose }: CommandPaletteProp
                 e.preventDefault();
                 if (filteredCommands[selectedIndex]) {
                     filteredCommands[selectedIndex].action();
-                    onClose();
+                    // Don't close if it's an agent command (waiting for modal)
+                    if (!filteredCommands[selectedIndex].id.startsWith('agent-')) {
+                        onClose();
+                    }
                 }
                 break;
             case 'Escape':
@@ -55,14 +99,27 @@ export default function CommandPalette({ commands, onClose }: CommandPaletteProp
         }
     };
 
+    if (generatedPrompt) {
+        return (
+            <PromptPreviewModal
+                title={generatedPrompt.title}
+                prompt={generatedPrompt.content}
+                onClose={() => {
+                    setGeneratedPrompt(null);
+                    onClose();
+                }}
+            />
+        );
+    }
+
     return (
         <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-[20vh] z-50" onClick={onClose}>
             <div
-                className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+                className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Search Input */}
-                <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-800">
                     <Search className="w-5 h-5 text-slate-400" />
                     <input
                         ref={inputRef}
@@ -71,7 +128,7 @@ export default function CommandPalette({ commands, onClose }: CommandPaletteProp
                         onChange={e => setQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Type a command..."
-                        className="flex-1 bg-transparent text-slate-700 placeholder-slate-400 focus:outline-none"
+                        className="flex-1 bg-transparent text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none"
                     />
                 </div>
 
@@ -85,19 +142,24 @@ export default function CommandPalette({ commands, onClose }: CommandPaletteProp
                                     cmd.action();
                                     onClose();
                                 }}
-                                className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${index === selectedIndex ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'
-                                    }`}
+                                className={`w-full flex items-center justify-between px-4 py-3 text-left transition-all ${index === selectedIndex
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                    } ${cmd.id.startsWith('agent-') ? 'hover:bg-purple-50 dark:hover:bg-purple-900/10' : ''}`}
                             >
-                                <span className="text-sm">{cmd.label}</span>
+                                <span className={`text-sm flex items-center gap-2 ${cmd.id.startsWith('agent-') ? 'font-medium text-purple-700 dark:text-purple-400' : ''}`}>
+                                    {cmd.id.startsWith('agent-') && <Sparkles className="w-3.5 h-3.5" />}
+                                    {cmd.label}
+                                </span>
                                 {cmd.shortcut && (
-                                    <kbd className="px-2 py-0.5 text-xs bg-slate-100 rounded text-slate-500 font-mono">
+                                    <kbd className="px-2 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 rounded text-slate-500 dark:text-slate-400 font-mono">
                                         {cmd.shortcut}
                                     </kbd>
                                 )}
                             </button>
                         ))
                     ) : (
-                        <div className="px-4 py-6 text-center text-slate-400 text-sm">
+                        <div className="px-4 py-6 text-center text-slate-400 dark:text-slate-500 text-sm">
                             No commands found
                         </div>
                     )}

@@ -12,7 +12,9 @@ export function useTasks(projectId: string | null) {
     const { logActivity } = useActivities(projectId);
 
     const fetchTasks = useCallback(async () => {
+        console.log('🔄 fetchTasks called with projectId:', projectId);
         if (!projectId) {
+            console.log('⚠️ No projectId, aborting fetch');
             setTasks([]);
             setLoading(false);
             return;
@@ -23,11 +25,16 @@ export function useTasks(projectId: string | null) {
             .from('tasks')
             .select('*')
             .eq('project_id', projectId)
-            .order('position', { ascending: true }); // Sort by position
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: true }); // Debug: Test if 'position' sort causes 400 error
+
+        console.log('📡 Supabase Response:', { dataBatch: data?.length, error });
 
         if (error) {
+            console.error('❌ Error fetching tasks:', error.message);
             setError(error.message);
         } else {
+            console.log(`✅ Loaded ${data?.length} tasks`);
             setTasks(
                 data.map((t) => ({
                     id: t.id,

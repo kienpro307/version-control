@@ -105,4 +105,14 @@ Khi user yêu cầu thực hiện công việc (không phải /mvm command):
 
 **Skip auto-task nếu**: questions, review only, one-liner fixes.
 
+### 🔧 MVM Auto-Setup for New Projects
+Nếu user yêu cầu "tích hợp MVM", "setup MVM", hoặc mở project chưa có `.mvm-project`:
+1. Tạo project trong MVM UI hoặc hỏi user lấy UUID
+2. Download và chạy setup script:
+```bash
+curl -o mvm-setup.js https://raw.githubusercontent.com/kienpro307/version-control/main/packages/mvm-cli/bin/mvm-setup.js
+node mvm-setup.js <project-path> <project-uuid>
+```
+3. Verify bằng `/mvm` command
+
 (End of Global Config)

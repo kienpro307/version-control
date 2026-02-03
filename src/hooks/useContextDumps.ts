@@ -89,6 +89,7 @@ export function useContextDumps(projectId: string | null) {
     }, [contextDumps]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchContextDumps();
     }, [fetchContextDumps]);
 

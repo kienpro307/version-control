@@ -16,6 +16,7 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
 
     useEffect(() => {
         if (task) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setDescription(task.description || '');
         }
     }, [task]);
@@ -96,6 +97,7 @@ export default function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDraw
                                 </span>
                                 <select
                                     value={task.priority || 'none'}
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     onChange={(e) => handlePriorityChange(e.target.value as any)}
                                     className={`text-xs font-semibold px-2 py-1 rounded-full cursor-pointer border-none focus:ring-0 ${priorityColors[task.priority || 'none']}`}
                                 >

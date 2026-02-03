@@ -66,7 +66,9 @@ The `.mvm-project` file should contain valid JSON:
 **Windows PowerShell command to create:**
 ```powershell
 # Replace YOUR_UUID with actual project UUID from dashboard
-'{"projectId":"YOUR_UUID"}' | Out-File -Encoding utf8 .mvm-project
+# Using UTF-8 without BOM to prevent JSON parse errors
+$content = '{\"projectId\":\"YOUR_UUID\"}'
+[System.IO.File]::WriteAllText(\".mvm-project\", $content, [System.Text.UTF8Encoding]::new($false))
 ```
 
 **Mac/Linux command:**

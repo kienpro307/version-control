@@ -12,6 +12,7 @@ interface VersionSectionProps {
     version: Version;
     tasks: Task[];
     onAddTask: (content: string) => void;
+    onCreateSubtask?: (parentId: string, content: string) => void;
     onToggleDone: (taskId: string, isDone: boolean) => void;
     onUpdateTask: (taskId: string, content: string) => void;
     onDeleteTask: (taskId: string) => void;
@@ -33,6 +34,7 @@ export default function VersionSection({
     version,
     tasks,
     onAddTask,
+    onCreateSubtask,
     onToggleDone,
     onUpdateTask,
     onDeleteTask,
@@ -127,8 +129,10 @@ export default function VersionSection({
         }
     };
 
-    // Sort already handled by parent hook, but re-sort locally if needed for done status
-    const sortedTasks = [...tasks];
+    // Filter only root tasks (parentId is null or undefined)
+    const rootTasks = tasks.filter(t => !t.parentId);
+    // Helper to get subtasks of a parent
+    const getSubtasks = (parentId: string) => tasks.filter(t => t.parentId === parentId);
 
     const doneCount = tasks.filter(t => t.isDone).length;
     const totalCount = tasks.length;
@@ -255,21 +259,40 @@ export default function VersionSection({
 
             {/* Task Table - Always visible */}
             <div ref={setNodeRef} className="border-t border-slate-100 dark:border-slate-800 min-h-[50px]">
-                {sortedTasks.length > 0 ? (
-                    <SortableContext items={sortedTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                {rootTasks.length > 0 ? (
+                    <SortableContext items={rootTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                         <div>
-                            {sortedTasks.map(task => (
-                                <SortableTaskRow
-                                    key={task.id}
-                                    task={task}
-                                    onToggleDone={onToggleDone}
-                                    onUpdate={onUpdateTask}
-                                    onDelete={onDeleteTask}
-                                    onOpen={onOpenTask}
-                                    isSelectionMode={isSelectionMode}
-                                    isSelected={selectedTaskIds.has(task.id)}
-                                    onToggleSelect={() => onToggleSelectTask(task.id)}
-                                />
+                            {rootTasks.map(task => (
+                                <div key={task.id}>
+                                    <SortableTaskRow
+                                        task={task}
+                                        onToggleDone={onToggleDone}
+                                        onUpdate={onUpdateTask}
+                                        onDelete={onDeleteTask}
+                                        onOpen={onOpenTask}
+                                        onCreateSubtask={onCreateSubtask}
+                                        isSelectionMode={isSelectionMode}
+                                        isSelected={selectedTaskIds.has(task.id)}
+                                        onToggleSelect={() => onToggleSelectTask(task.id)}
+                                        depth={0}
+                                    />
+                                    {/* Render subtasks */}
+                                    {getSubtasks(task.id).map(subtask => (
+                                        <SortableTaskRow
+                                            key={subtask.id}
+                                            task={subtask}
+                                            onToggleDone={onToggleDone}
+                                            onUpdate={onUpdateTask}
+                                            onDelete={onDeleteTask}
+                                            onOpen={onOpenTask}
+                                            onCreateSubtask={onCreateSubtask}
+                                            isSelectionMode={isSelectionMode}
+                                            isSelected={selectedTaskIds.has(subtask.id)}
+                                            onToggleSelect={() => onToggleSelectTask(subtask.id)}
+                                            depth={1}
+                                        />
+                                    ))}
+                                </div>
                             ))}
                         </div>
                     </SortableContext>
@@ -330,9 +353,11 @@ interface TaskRowProps {
     onUpdate: (taskId: string, content: string) => void;
     onDelete: (taskId: string) => void;
     onOpen: (task: Task) => void;
+    onCreateSubtask?: (parentId: string, content: string) => void;
     isSelectionMode?: boolean;
     isSelected?: boolean;
     onToggleSelect?: () => void;
+    depth?: number;
 }
 
 function SortableTaskRow(props: TaskRowProps) {
@@ -369,10 +394,13 @@ function SortableTaskRow(props: TaskRowProps) {
     );
 }
 
-function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMode, isSelected, onToggleSelect }: TaskRowProps) {
+function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, onCreateSubtask, isSelectionMode, isSelected, onToggleSelect, depth = 0 }: TaskRowProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(task.content);
+    const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+    const [newSubtaskContent, setNewSubtaskContent] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
+    const subtaskInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -380,6 +408,12 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
             inputRef.current.select();
         }
     }, [isEditing]);
+
+    useEffect(() => {
+        if (isAddingSubtask && subtaskInputRef.current) {
+            subtaskInputRef.current.focus();
+        }
+    }, [isAddingSubtask]);
 
     const handleSave = () => {
         if (editContent.trim() && editContent !== task.content) {
@@ -398,91 +432,147 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
         }
     };
 
+    const handleAddSubtask = () => {
+        if (newSubtaskContent.trim() && onCreateSubtask) {
+            onCreateSubtask(task.id, newSubtaskContent.trim());
+            setNewSubtaskContent('');
+            setIsAddingSubtask(false);
+        }
+    };
+
+    const handleSubtaskKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') handleAddSubtask();
+        if (e.key === 'Escape') {
+            setNewSubtaskContent('');
+            setIsAddingSubtask(false);
+        }
+    };
+
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
     };
 
+    const indentStyle = { paddingLeft: `${depth * 24}px` };
+
     return (
-        <div className={`group flex items-center gap-2 px-4 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isSelected ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+        <>
+            <div style={indentStyle} className={`group flex items-center gap-2 px-4 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isSelected ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${depth > 0 ? 'bg-slate-50/30 dark:bg-slate-800/30' : ''}`}>
 
-            {/* Selection Checkbox */}
-            {isSelectionMode && (
-                <div className="flex-shrink-0 mr-2">
-                    <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={onToggleSelect}
-                        className="w-5 h-5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer bg-white dark:bg-slate-800"
-                    />
-                </div>
-            )}
+                {/* Selection Checkbox */}
+                {isSelectionMode && (
+                    <div className="flex-shrink-0 mr-2">
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={onToggleSelect}
+                            className="w-5 h-5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer bg-white dark:bg-slate-800"
+                        />
+                    </div>
+                )}
 
-            {!isSelectionMode && (
-                <button
-                    onClick={() => onToggleDone(task.id, !task.isDone)}
-                    className={`
+                {!isSelectionMode && (
+                    <button
+                        onClick={() => onToggleDone(task.id, !task.isDone)}
+                        className={`
                         flex-shrink-0 flex items-center justify-center
                         w-7 h-7 -ml-1 rounded-md
                         transition-all duration-150 ease-out
                         active:scale-90
                         ${task.isDone
-                            ? 'text-emerald-600 dark:text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                            : 'text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                        }
+                                ? 'text-emerald-600 dark:text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                : 'text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                            }
                     `}
-                    title={task.isDone ? 'Mark as pending' : 'Mark as done'}
-                >
-                    {task.isDone ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
-                </button>
-            )}
+                        title={task.isDone ? 'Mark as pending' : 'Mark as done'}
+                    >
+                        {task.isDone ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                    </button>
+                )}
 
-            {isEditing ? (
-                <input
-                    ref={inputRef}
-                    type="text"
-                    value={editContent}
-                    onChange={e => setEditContent(e.target.value)}
-                    onBlur={handleSave}
-                    onKeyDown={handleKeyDown}
-                    className="flex-1 px-2 py-1 text-sm border border-blue-300 dark:border-blue-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-            ) : (
-                <span
-                    onDoubleClick={() => setIsEditing(true)}
-                    className="flex-1 text-xs cursor-text text-slate-700 dark:text-slate-300 font-medium"
-                >
-                    {task.content}
+                {isEditing ? (
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        onBlur={handleSave}
+                        onKeyDown={handleKeyDown}
+                        className="flex-1 px-2 py-1 text-sm border border-blue-300 dark:border-blue-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    />
+                ) : (
+                    <span
+                        onDoubleClick={() => setIsEditing(true)}
+                        className="flex-1 text-xs cursor-text text-slate-700 dark:text-slate-300 font-medium"
+                    >
+                        {task.content}
+                    </span>
+                )}
+
+                <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">
+                    {formatDate(task.doneAt || task.createdAt)}
                 </span>
-            )}
 
-            <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">
-                {formatDate(task.doneAt || task.createdAt)}
-            </span>
-
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                    onClick={() => onOpen(task)}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-100 transition-all"
-                    title="Open Details"
-                >
-                    <Maximize2 className="w-4 h-4" />
-                </button>
-                <button
-                    onClick={() => setIsEditing(true)}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-100 transition-all"
-                    title="Edit (E)"
-                >
-                    <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                    onClick={() => onDelete(task.id)}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-100 transition-all"
-                    title="Delete"
-                >
-                    <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Add Subtask button - only for parent tasks (depth 0) */}
+                    {depth === 0 && onCreateSubtask && (
+                        <button
+                            onClick={() => setIsAddingSubtask(true)}
+                            className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 active:bg-green-100 transition-all"
+                            title="Add Subtask"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    )}
+                    <button
+                        onClick={() => onOpen(task)}
+                        className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-100 transition-all"
+                        title="Open Details"
+                    >
+                        <Maximize2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => setIsEditing(true)}
+                        className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-100 transition-all"
+                        title="Edit (E)"
+                    >
+                        <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => onDelete(task.id)}
+                        className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-100 transition-all"
+                        title="Delete"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
-        </div>
+            {/* Subtask input row */}
+            {isAddingSubtask && (
+                <div style={{ paddingLeft: `${(depth + 1) * 24}px` }} className="flex items-center gap-2 px-4 py-1 bg-green-50/50 dark:bg-green-900/10 border-l-2 border-green-400 dark:border-green-600">
+                    <Plus className="w-4 h-4 text-green-600 dark:text-green-500" />
+                    <input
+                        ref={subtaskInputRef}
+                        type="text"
+                        value={newSubtaskContent}
+                        onChange={e => setNewSubtaskContent(e.target.value)}
+                        onKeyDown={handleSubtaskKeyDown}
+                        onBlur={() => {
+                            if (!newSubtaskContent.trim()) setIsAddingSubtask(false);
+                        }}
+                        placeholder="Add subtask..."
+                        className="flex-1 bg-white dark:bg-slate-900 border border-green-300 dark:border-green-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-green-500 text-slate-900 dark:text-slate-100"
+                    />
+                    {newSubtaskContent && (
+                        <button
+                            onClick={handleAddSubtask}
+                            className="px-2 py-1 text-xs font-semibold bg-green-600 dark:bg-green-700 text-white rounded hover:bg-green-700 dark:hover:bg-green-600"
+                        >
+                            Add
+                        </button>
+                    )}
+                </div>
+            )}
+        </>
     );
 }

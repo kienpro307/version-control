@@ -39,11 +39,11 @@ Before starting, make sure you have:
 
 ### 1.2 Run Database Migrations
 
-> ⚠️ **Important**: Run ONLY `schema.sql` - it contains all tables and migrations
+> ⚠️ **Important**: Run `schema.sql` first - it contains all core tables
 
 1. In Supabase dashboard, go to **SQL Editor** (left sidebar)
 2. Click **"New query"**
-3. Copy **entire contents** from [`supabase/schema.sql`](../supabase/schema.sql) in this repo
+3. Copy **entire contents** from **[`supabase/schema.sql`](../supabase/schema.sql)**
 4. Paste into the SQL editor
 5. Click **"Run"** (bottom right)
 
@@ -54,17 +54,31 @@ You should see: ✅ `Success. No rows returned`
 - `activities`, `context_dumps`, `ai_logs` tables  
 - Indexes and RLS policies
 
-> 💡 The `migration_groups.sql` file is optional and only adds project grouping features.
+**Optional: Project Grouping**
+
+If you want hierarchical project groups (e.g., "Work/Client A", "Personal/Side Projects"):
+1. Run **[`supabase/migration_groups.sql`](../supabase/migration_groups.sql)** in SQL Editor
+2. This adds the `project_groups` table and `group_id` column
 
 ### 1.3 Get API Credentials
 
 1. Go to **Settings** → **API** (left sidebar)
-2. Copy these values (you'll need them later):
-   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
-   - **anon public** key (starts with `eyJhbGc...`)
-   - **service_role** key (starts with `eyJhbGc...`, longer)
+2. Copy these values:
 
-> ⚠️ **Keep `service_role` key secret!** Never commit it to git.
+| Key Type | Used For | Security Level |
+|----------|----------|----------------|
+| **anon public** | Frontend (Vercel deployment) | ✅ Safe to expose, RLS protected |
+| **service_role** | MCP only (AI agent access) | 🔐 SECRET - Full DB access, bypasses RLS |
+
+3. Copy both keys now:
+   - **Project URL**: `https://xxxxx.supabase.co`
+   - **anon public** key: Starts with `eyJhbGc...`
+   - **service_role** key: Starts with `eyJhbGc...` (longer)
+
+> 🔐 **Security Warning**:
+> - ✅ `anon` key → Add to `.env.local` (for Vercel)
+> - ❌ `service_role` key → NEVER commit to git, use only in MCP config (Step 3)
+> - The `service_role` key has **full database access** and bypasses all RLS policies
 
 ---
 
@@ -147,8 +161,15 @@ This step connects your AI agent to MVM's database.
 
 ### 3.1 Get Supabase Service Role Key
 
+> 🔐 **Important**: You need the `service_role` key (NOT the `anon` key) for MCP.
+
 1. Go to Supabase → **Settings** → **API**
-2. Copy the **`service_role`** key (⚠️ different from `anon` key!)
+2. Copy the **`service_role`** key (the longer one)
+
+**Why service_role?**
+- AI agents need full database access to read tasks/context dumps
+- The `anon` key is restricted by RLS policies
+- The `service_role` key bypasses all security checks
 
 ### 3.2 Configure Your AI Agent
 
@@ -231,7 +252,9 @@ mkdir mvm-test-project
 cd mvm-test-project
 
 # Create marker file (replace YOUR_UUID with actual UUID)
-'{"projectId":"YOUR_UUID"}' | Out-File -Encoding utf8 .mvm-project
+# Using UTF-8 without BOM to avoid JSON parse errors
+$content = '{"projectId":"YOUR_UUID"}'
+[System.IO.File]::WriteAllText(".mvm-project", $content, [System.Text.UTF8Encoding]::new($false))
 ```
 
 **Mac/Linux:**
@@ -246,7 +269,13 @@ echo '{"projectId":"YOUR_UUID"}' > .mvm-project
 
 Replace `YOUR_UUID` with the UUID from step 4.1.
 
-> 💡 You can also copy `.mvm-project.example` from the repo and edit it.
+> 💡 **Quick Method**: Use the helper script:
+> ```powershell
+> # Windows
+> .\scripts\create-mvm-project.ps1 -ProjectId "YOUR_UUID"
+> ```
+> 
+> The script validates the UUID format and creates the file with correct UTF-8 encoding.
 
 ### 4.3 Test MCP Connection
 

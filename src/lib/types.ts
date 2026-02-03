@@ -28,6 +28,9 @@ export interface Task {
     description?: string;
     labels?: string[];
     priority?: 'none' | 'low' | 'medium' | 'high' | 'urgent';
+    // Subtask fields
+    parentId?: string | null;
+    depth?: number; // 0 = parent task, 1 = subtask
 }
 
 export interface Settings {

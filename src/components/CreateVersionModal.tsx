@@ -67,8 +67,12 @@ export default function CreateVersionModal({ onClose, onCreate }: CreateVersionM
                         </button>
                     </div>
 
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-3">
+                        Give your version a name like &quot;v1.0.0&quot; or &quot;Beta Release&quot;
+                    </p>
+
                     <p className="mt-3 text-xs text-slate-400 dark:text-slate-500 text-center">
-                        "Migrate" will move all pending tasks to this new version
+                        &quot;Migrate&quot; will move all pending tasks to this new version
                     </p>
                 </div>
             </div>

@@ -56,6 +56,7 @@ export default function Home() {
     const saved = localStorage.getItem('sidebarWidth');
     if (saved) {
       const w = Number(saved);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!isNaN(w) && w >= 200 && w <= 600) setSidebarWidth(w);
     }
   }, []);
@@ -79,6 +80,7 @@ export default function Home() {
   const {
     tasks,
     createTask: apiCreateTask,
+    createSubtask: apiCreateSubtask,
     toggleDone: apiToggleDone,
     updateTask: apiUpdateTask,
     deleteTask: apiDeleteTask,
@@ -127,8 +129,10 @@ export default function Home() {
   useEffect(() => {
     if (!selectedProjectId && projects.length > 0) {
       if (settings.lastProjectId && projects.some(p => p.id === settings.lastProjectId)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedProjectId(settings.lastProjectId);
       } else {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedProjectId(projects[0].id);
       }
     }
@@ -644,6 +648,7 @@ export default function Home() {
                       version={version}
                       tasks={tasksByVersion[version.id]?.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase())) || []}
                       onAddTask={(content: string) => handleAddTask(content, version.id)}
+                      onCreateSubtask={apiCreateSubtask}
                       onToggleDone={apiToggleDone}
                       onUpdateTask={apiUpdateTask}
                       onDeleteTask={apiDeleteTask}
@@ -673,6 +678,7 @@ export default function Home() {
                         version={{ id: 'unassigned', projectId: selectedProjectId, name: 'Unassigned', isActive: false, createdAt: '' }}
                         tasks={tasksByVersion.unassigned.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase()))}
                         onAddTask={(content: string) => handleAddTask(content, null)}
+                        onCreateSubtask={apiCreateSubtask}
                         onToggleDone={apiToggleDone}
                         onUpdateTask={apiUpdateTask}
                         onDeleteTask={apiDeleteTask}

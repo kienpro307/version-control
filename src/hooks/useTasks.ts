@@ -33,6 +33,8 @@ async function fetchTasks(projectId: string): Promise<Task[]> {
         description: t.description || '',
         labels: t.labels || [],
         priority: t.priority || 'none',
+        parentId: t.parent_id,
+        depth: t.depth || 0,
     }));
 }
 
@@ -71,6 +73,8 @@ async function fetchTasksByVersion(
         description: t.description || '',
         labels: t.labels || [],
         priority: t.priority || 'none',
+        parentId: t.parent_id,
+        depth: t.depth || 0,
     }));
 }
 
@@ -141,6 +145,8 @@ export function useTasks(projectId: string | null) {
             createdAt: data.created_at,
             doneAt: data.done_at,
             position: data.position,
+            parentId: data.parent_id,
+            depth: data.depth || 0,
         };
 
         // Optimistic update + revalidate
@@ -285,6 +291,65 @@ export function useTasks(projectId: string | null) {
         return true;
     };
 
+    const createSubtask = async (
+        parentId: string,
+        content: string
+    ): Promise<Task | null> => {
+        if (!projectId) return null;
+
+        const parentTask = tasks.find(t => t.id === parentId);
+        if (!parentTask) {
+            console.error('Parent task not found');
+            return null;
+        }
+
+        // Subtasks inherit version from parent
+        const versionId = parentTask.versionId;
+
+        // Calculate position (append to bottom of parent's subtasks)
+        const parentSubtasks = tasks.filter(t => t.parentId === parentId);
+        const maxPosition = parentSubtasks.length > 0 ? Math.max(...parentSubtasks.map(t => t.position)) : -1;
+        const newPosition = maxPosition + 1;
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .insert({
+                project_id: projectId,
+                version_id: versionId,
+                content,
+                is_done: false,
+                parent_id: parentId,
+                position: newPosition,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating subtask:', error.message);
+            return null;
+        }
+
+        const newSubtask: Task = {
+            id: data.id,
+            projectId: data.project_id,
+            versionId: data.version_id,
+            content: data.content,
+            isDone: data.is_done,
+            createdAt: data.created_at,
+            doneAt: data.done_at,
+            position: data.position,
+            parentId: data.parent_id,
+            depth: data.depth || 1,
+        };
+
+        // Optimistic update
+        mutate([...tasks, newSubtask], { revalidate: true });
+
+        logActivity('create_subtask', 'task', newSubtask.id, `Created subtask: ${content.substring(0, 30)}...`);
+
+        return newSubtask;
+    };
+
     const getPendingTasks = useCallback((): Task[] => {
         return tasks.filter((t) => !t.isDone);
     }, [tasks]);
@@ -384,6 +449,7 @@ export function useTasks(projectId: string | null) {
         setTasks,
         loading,
         createTask,
+        createSubtask,
         reorderTask,
         moveTask,
         toggleDone,

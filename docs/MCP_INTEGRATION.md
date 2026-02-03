@@ -76,7 +76,14 @@ We use the official [@supabase/mcp-server-supabase](https://www.npmjs.com/packag
 7. **Restart Antigravity**
 
 #### Via Config File (Alternative)
-Edit `C:\Users\<YourName>\.gemini\antigravity\mcp_config.json`:
+
+The MCP config file location varies by Antigravity version:
+- **Global config**: `C:\Users\<YourName>\.gemini\mcp_config.json`
+- **Scoped config**: `C:\Users\<YourName>\.gemini\antigravity\mcp_config.json`
+
+Try the global path first. If it doesn't exist, use the scoped path.
+
+Edit the config file:
 
 ```json
 {
@@ -156,12 +163,14 @@ Restart Antigravity after saving.
 
 ---
 
-### Step 3: Enable Auto-Detection (Optional)
+### Step 3: Enable Auto-Detection (Recommended)
 
 This makes AI automatically detect MVM projects without manual prompts.
 
+> ⚠️ **Important**: APPEND (don't replace) the snippet to your existing global rules
+
 1. Copy content from [`templates/GEMINI_SNIPPET.md`](../templates/GEMINI_SNIPPET.md)
-2. Paste into your agent's global instructions:
+2. **Append** (not replace) to your agent's global instructions:
 
 | AI Agent | Location |
 |----------|----------|

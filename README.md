@@ -72,7 +72,13 @@ npm run dev
 # Open http://localhost:3000
 ```
 
-See [SETUP.md](docs/SETUP.md) for detailed development instructions.
+**Create .mvm-project marker** (see [Step 4.2](docs/GETTING_STARTED.md#42-create-mvm-project-file)):
+```powershell
+# Windows: Use helper script
+.\scripts\create-mvm-project.ps1 -ProjectId "your-uuid-here"
+```
+
+See [GETTING_STARTED.md](docs/GETTING_STARTED.md) for detailed instructions.
 
 ---
 

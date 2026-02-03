@@ -81,6 +81,7 @@ export function useActivities(projectId: string | null) {
     }, [fetchActivities]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchActivities();
     }, [fetchActivities]);
 

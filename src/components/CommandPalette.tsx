@@ -73,6 +73,7 @@ export default function CommandPalette({ commands, onClose, contextData }: Comma
     }, []);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedIndex(0);
     }, [query]);
 

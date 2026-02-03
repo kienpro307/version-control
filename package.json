@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify-setup": "ts-node scripts/verify-setup.ts",
+    "generate-api-key": "node -e \"const c=require('crypto');console.log('mvm_sk_live_'+c.randomBytes(32).toString('base64').replace(/[+/]/g,m=>m==='+'?'A':'B').substring(0,32));\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

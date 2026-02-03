@@ -39,13 +39,22 @@ Before starting, make sure you have:
 
 ### 1.2 Run Database Migrations
 
+> ⚠️ **Important**: Run ONLY `schema.sql` - it contains all tables and migrations
+
 1. In Supabase dashboard, go to **SQL Editor** (left sidebar)
 2. Click **"New query"**
-3. Copy contents from [`supabase/schema.sql`](../supabase/schema.sql) in this repo
-4. Paste and click **"Run"**
-5. Repeat for [`supabase/migration_groups.sql`](../supabase/migration_groups.sql)
+3. Copy **entire contents** from [`supabase/schema.sql`](../supabase/schema.sql) in this repo
+4. Paste into the SQL editor
+5. Click **"Run"** (bottom right)
 
 You should see: ✅ `Success. No rows returned`
+
+**What this creates:**
+- `projects`, `versions`, `tasks` tables
+- `activities`, `context_dumps`, `ai_logs` tables  
+- Indexes and RLS policies
+
+> 💡 The `migration_groups.sql` file is optional and only adds project grouping features.
 
 ### 1.3 Get API Credentials
 
@@ -73,6 +82,10 @@ You should see: ✅ `Success. No rows returned`
 git clone https://github.com/kienpro307/version-control.git
 cd my-version-manager
 npm install
+
+# Setup environment variables
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
 ```
 
 ### 2.2 Deploy via Vercel Dashboard
@@ -97,8 +110,14 @@ npm install
 
 ### 2.3 Generate API Key
 
+> 💡 **Easier way**: Use the provided script
+
 **On Windows (PowerShell):**
 ```powershell
+# If you cloned the repo locally:
+.\scripts\generate-api-key.ps1
+
+# Or manually:
 $bytes = New-Object byte[] 32
 [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
 "mvm_sk_live_" + [Convert]::ToBase64String($bytes).Replace("+", "A").Replace("/", "B").Substring(0, 32)
@@ -173,15 +192,21 @@ Choose your AI agent:
 4. Save and restart Claude Desktop
 </details>
 
-### 3.3 Add Global AI Instructions (Optional but Recommended)
+### 3.3 Add Global AI Instructions (REQUIRED for Auto-Detection)
 
-This makes AI automatically detect MVM projects.
+> ⚠️ **This step is REQUIRED** for AI to automatically detect MVM projects when you open a workspace.
 
 1. Copy content from [`templates/GEMINI_SNIPPET.md`](../templates/GEMINI_SNIPPET.md)
 2. Paste into your AI agent's global rules:
    - **Antigravity**: `~/.gemini/GEMINI.md`
    - **Cursor**: `~/.cursor/prompts/global.md`
    - **Claude Desktop**: Settings → Custom Instructions
+
+**What this enables:**
+- ✅ AI checks for `.mvm-project` on workspace open
+- ✅ Automatically loads pending tasks
+- ✅ Resumes from context dumps
+- ✅ No need to manually tell AI about MVM
 
 ---
 
@@ -199,16 +224,29 @@ This makes AI automatically detect MVM projects.
 
 In any local directory:
 
+**Windows PowerShell:**
+```powershell
+# Create a test folder
+mkdir mvm-test-project
+cd mvm-test-project
+
+# Create marker file (replace YOUR_UUID with actual UUID)
+'{"projectId":"YOUR_UUID"}' | Out-File -Encoding utf8 .mvm-project
+```
+
+**Mac/Linux:**
 ```bash
 # Create a test folder
 mkdir mvm-test-project
 cd mvm-test-project
 
-# Create marker file
-echo '{"projectId":"PASTE_YOUR_UUID_HERE"}' > .mvm-project
+# Create marker file (replace YOUR_UUID with actual UUID)
+echo '{"projectId":"YOUR_UUID"}' > .mvm-project
 ```
 
-Replace `PASTE_YOUR_UUID_HERE` with the UUID from step 4.1.
+Replace `YOUR_UUID` with the UUID from step 4.1.
+
+> 💡 You can also copy `.mvm-project.example` from the repo and edit it.
 
 ### 4.3 Test MCP Connection
 
@@ -221,6 +259,8 @@ Replace `PASTE_YOUR_UUID_HERE` with the UUID from step 4.1.
 - Returns: `"No pending tasks found"` (since it's a new project)
 
 **If you see this, setup is complete!** ✅
+
+> 📋 See [VERIFICATION_EXAMPLES.md](VERIFICATION_EXAMPLES.md) for detailed output examples and troubleshooting screenshots.
 
 ### Troubleshooting
 

@@ -94,6 +94,8 @@ Edit `C:\Users\<YourName>\.gemini\antigravity\mcp_config.json`:
 ```
 
 Restart Antigravity after saving.
+
+> 💡 **Recommendation**: Use the UI Settings approach for easier setup. The config file method is shown here for reference and automation purposes.
 </details>
 
 <details>

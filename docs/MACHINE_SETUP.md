@@ -123,8 +123,12 @@ Khi user yêu cầu thực hiện công việc (không phải /mvm command):
 
 ## Step 2: Get Supabase Service Role Key
 
-1. Go to: https://supabase.com/dashboard/project/xggrigjnrecjtgfhjpkr/settings/api
-2. Copy **"service_role"** key (NOT anon key)
+1. Go to your Supabase dashboard: https://supabase.com/dashboard
+2. Select your MVM project
+3. Navigate to **Settings** → **API**
+4. Copy the **"service_role"** key (NOT the anon key)
+
+> ⚠️ Keep this key secret! Never commit it to git.
 
 ---
 
@@ -137,11 +141,15 @@ Open Antigravity Settings → MCP Servers → Add:
   "command": "npx",
   "args": ["-y", "@supabase/mcp-server-supabase"],
   "env": {
-    "SUPABASE_URL": "https://xggrigjnrecjtgfhjpkr.supabase.co",
+    "SUPABASE_URL": "https://YOUR_PROJECT_ID.supabase.co",
     "SUPABASE_SERVICE_ROLE_KEY": "PASTE_YOUR_SERVICE_ROLE_KEY_HERE"
   }
 }
 ```
+
+**Replace:**
+- `YOUR_PROJECT_ID` with your actual Supabase project ID
+- `PASTE_YOUR_SERVICE_ROLE_KEY_HERE` with the service_role key from Step 2
 
 Name: `mvm`
 

@@ -62,9 +62,10 @@ cd my-version-manager
 # Install dependencies
 npm install
 
-# Setup environment (.env.local)
+# Setup environment
 cp .env.example .env.local
 # Edit .env.local with your Supabase credentials
+# See GETTING_STARTED.md for detailed setup
 
 # Run locally
 npm run dev

@@ -50,12 +50,21 @@ export function useTasks(projectId: string | null) {
         content: string,
         activeVersionId: string | null
     ): Promise<Task | null> => {
+        console.log('🔵 createTask called:', { content, activeVersionId, projectId });
+
         if (!projectId) return null;
 
         // Calculate new position (append to bottom)
         const versionTasks = tasks.filter(t => t.versionId === activeVersionId);
         const maxPosition = versionTasks.length > 0 ? Math.max(...versionTasks.map(t => t.position)) : -1;
         const newPosition = maxPosition + 1;
+
+        console.log('🟡 Inserting task:', {
+            project_id: projectId,
+            version_id: activeVersionId,
+            content,
+            position: newPosition,
+        });
 
         const { data, error } = await supabase
             .from('tasks')
@@ -70,9 +79,11 @@ export function useTasks(projectId: string | null) {
             .single();
 
         if (error) {
-            console.error('Error creating task:', error.message);
+            console.error('🔴 Error creating task:', error.message);
             return null;
         }
+
+        console.log('🟢 Task created successfully:', data);
 
         const newTask: Task = {
             id: data.id,

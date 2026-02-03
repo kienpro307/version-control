@@ -1,0 +1,25 @@
+{
+    "name": "mvm-setup-cli",
+    "version": "1.0.0",
+    "description": "MVM (My Version Manager) - AI Agent External Memory Setup CLI",
+    "main": "bin/mvm-setup.js",
+    "bin": {
+        "mvm-setup": "./bin/mvm-setup.js"
+    },
+    "keywords": [
+        "mvm",
+        "ai-agent",
+        "antigravity",
+        "version-manager",
+        "cli"
+    ],
+    "author": "kien307",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/kien307/my-version-manager"
+    },
+    "engines": {
+        "node": ">=14"
+    }
+}

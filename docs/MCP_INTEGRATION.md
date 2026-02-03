@@ -1,324 +1,349 @@
-# MCP Server Integration Guide
+# MCP Integration Guide
 
-> **Mục đích**: Hướng dẫn AI Agents (Antigravity, Cursor, etc.) sử dụng MyVersionManager như External Memory.
+> **Connect AI agents to My Version Manager's database**
 
-> 🚀 **New**: Xem [QUICK_START.md](./QUICK_START.md) để setup trong 3 bước!
-
----
-
-## Multi-Machine Setup (Recommended)
-
-Nếu bạn có nhiều máy (Office Mac, Home Mac, Windows):
-
-1. **MCP Config**: Add vào mỗi IDE (1 lần/máy)
-2. **`.mvm-project`**: Tạo trong mỗi project, commit vào git (auto-sync)
-3. **GEMINI Snippet**: Add vào `~/.gemini/GEMINI.md` (1 lần/máy)
-
-Xem chi tiết: [QUICK_START.md](./QUICK_START.md)
+This guide covers MCP (Model Context Protocol) setup for direct database access from AI agents like Antigravity, Cursor, and Claude Desktop.
 
 ---
 
-## Tổng quan
+## What is MCP?
 
+**Model Context Protocol** allows AI agents to:
+- Query your Supabase database directly
+- Read tasks, projects, and context dumps
+- Execute operations without API authentication
 
-MyVersionManager (MVM) cung cấp 2 phương thức để AI Agents tương tác:
-
-| Phương thức | Khi nào dùng | Ưu điểm |
-|-------------|-------------|---------|
-| **REST API** | Gọi từ bất kỳ môi trường nào | Đơn giản, universal |
-| **MCP Server** | IDE hỗ trợ MCP (Antigravity) | Native integration |
-
----
-
-## 1. REST API (Khuyến nghị)
-
-### Base URL
-```
-Production: https://my-version-manager.vercel.app/api
-Local:      http://localhost:3000/api
-```
-
-### Authentication
-```http
-Authorization: Bearer mvm_sk_live_YOUR_API_KEY
-```
+Think of it as a "read-only database connection" for your AI.
 
 ---
 
-### Endpoints
+## Prerequisites
 
-#### 📁 Projects
-
-**List all projects**
-```bash
-GET /api/projects
-```
-
-**Create project**
-```bash
-POST /api/projects
-Content-Type: application/json
-
-{
-  "name": "iOS/XTranslate"
-}
-```
-
-**Update project progress**
-```bash
-PATCH /api/projects/{id}
-Content-Type: application/json
-
-{
-  "progress": 75
-}
-```
+Before proceeding, ensure you have:
+- [ ] MVM deployed to Vercel ([GETTING_STARTED.md](GETTING_STARTED.md))
+- [ ] Supabase project set up with migrations
+- [ ] Supabase **service_role** key (from Settings → API)
+- [ ] AI agent installed (Antigravity, Cursor, or Claude Desktop)
 
 ---
 
-#### ✅ Tasks
+## Recommended Approach: Supabase MCP via npx
 
-**Get tasks for a project**
-```bash
-GET /api/projects/{projectId}/tasks
-```
+We use the official [@supabase/mcp-server-supabase](https://www.npmjs.com/package/@supabase/mcp-server-supabase) package.
 
-**Create task**
-```bash
-POST /api/projects/{projectId}/tasks
-Content-Type: application/json
-
-{
-  "content": "Implement login screen",
-  "versionId": "optional-version-uuid"
-}
-```
-
-**Complete task**
-```bash
-PATCH /api/tasks/{taskId}
-Content-Type: application/json
-
-{
-  "isDone": true
-}
-```
+**Why this approach?**
+- ✅ Zero local setup (npx auto-installs)
+- ✅ Official Supabase support
+- ✅ Works with all MCP-compatible agents
+- ✅ No intermediate server needed
 
 ---
 
-#### 📦 Versions
+## Step-by-Step Setup
 
-**List versions for a project**
-```bash
-GET /api/projects/{projectId}/versions
-```
+### Step 1: Get Supabase Credentials
 
-**Create version**
-```bash
-POST /api/projects/{projectId}/versions
-Content-Type: application/json
+1. Go to your Supabase dashboard
+2. Navigate to **Settings** → **API**
+3. Copy these two values:
+   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
+   - **`service_role` key** (NOT the `anon` key!)
 
-{
-  "name": "v1.0 - Initial Release",
-  "isActive": true
-}
-```
+> ⚠️ **Important**: Use `service_role` key for MCP. The `anon` key has limited permissions.
 
 ---
 
-#### 🧠 Context Dumps (cho AI continuity)
+### Step 2: Configure Your AI Agent
 
-**Get latest context dump**
-```bash
-GET /api/projects/{projectId}/context
-```
+<details open>
+<summary><h3>Antigravity (Recommended)</h3></summary>
 
-**Create context dump**
-```bash
-POST /api/projects/{projectId}/context
-Content-Type: application/json
+#### Via UI Settings
+1. Open Antigravity
+2. Go to **Settings** (⚙️ icon)
+3. Click **MCP Servers** tab
+4. Click **"Add Server"**
+5. Fill in the form:
+   - **Server Name**: `mvm`
+   - **Command**: `npx`
+   - **Arguments** (add separately):
+     - First arg: `-y`
+     - Second arg: `@supabase/mcp-server-supabase`
+   - **Environment Variables** (click "Add Environment Variable"):
+     - Key: `SUPABASE_URL`, Value: Your Supabase URL
+     - Key: `SUPABASE_SERVICE_ROLE_KEY`, Value: Your service_role key
+6. Click **"Save"**
+7. **Restart Antigravity**
 
-{
-  "mental_model": "Đang implement feature X, file Y đã xong...",
-  "next_step_prompt": "Tiếp tục với file Z, cần test ở browser...",
-  "workspace_location": "office"
-}
-```
-
----
-
-## 2. MCP Integration (Recommended) 🚀
-
-Cách dễ nhất là sử dụng package chính thức `@supabase/mcp-server-supabase`. Không cần deploy bất kỳ code nào.
-
-### Cấu hình trong Cursor / Claude / Antigravity
-
-Thêm vào file config MCP của IDE:
+#### Via Config File (Alternative)
+Edit `C:\Users\<YourName>\.gemini\antigravity\mcp_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "my-version-manager": {
+    "mvm": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@supabase/mcp-server-supabase"
-      ],
+      "args": ["-y", "@supabase/mcp-server-supabase"],
       "env": {
-        "SUPABASE_URL": "https://your-project.supabase.co",
-        "SUPABASE_SERVICE_ROLE_KEY": "eyJ..."
+        "SUPABASE_URL": "https://xxxxx.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGc..."
       }
     }
   }
 }
 ```
 
-### Tại sao nên dùng cách này?
-- **Zero Deployment**: Chạy trực tiếp qua `npx`, không cần host Worker.
-- **Full Access**: AI có thể query mọi bảng (tasks, projects, logs) bằng SQL hoặc REST tools.
-- **Security**: Key được lưu trong IDE, không lộ ra public.
+Restart Antigravity after saving.
+</details>
 
----
+<details>
+<summary><h3>Cursor</h3></summary>
 
-### Mẫu Prompt cho AI Agent
+1. Create/edit MCP config file:
+   - **Windows**: `C:\Users\<YourName>\.cursor\mcp.json`
+   - **macOS/Linux**: `~/.cursor/mcp.json`
 
-Khi bắt đầu session, hãy cung cấp context này cho AI:
+2. Copy template from [`templates/mcp-config.json`](../templates/mcp-config.json):
 
-```markdown
-# MyVersionManager Context
-Bạn có quyền truy cập database quản lý task qua MCP Supabase.
-
-## Database Schema
-- `projects`: id, name, progress
-- `tasks`: id, project_id, content, is_done
-- `context_dumps`: id, mental_model, next_step_prompt
-
-## Nhiệm vụ
-- Đầu buổi: Query `tasks` chưa xong của project hiện tại.
-- Cuối buổi: Insert `context_dumps` mới và update `progress`.
-
-## Project IDs
-- iOS/XTranslate: `...`
-- Web/MVM: `1601b9ca-f19c-4bd6-97ba-9f41de6c2a0d`
-```
-
----
-
-## 3. Ví dụ thực tế: Node.js Script
-
-```javascript
-const SUPABASE_URL = 'https://xxxxx.supabase.co';
-const SUPABASE_KEY = 'eyJhbGc...';
-
-const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// Thêm task mới
-async function addTask(projectId, versionId, content) {
-    const { data, error } = await supabase
-        .from('tasks')
-        .insert({ project_id: projectId, version_id: versionId, content, is_done: false })
-        .select()
-        .single();
-    
-    if (error) throw error;
-    return data;
+```json
+{
+  "mcpServers": {
+    "mvm": {
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase"],
+      "env": {
+        "SUPABASE_URL": "YOUR_SUPABASE_URL_HERE",
+        "SUPABASE_SERVICE_ROLE_KEY": "YOUR_SERVICE_ROLE_KEY_HERE"
+      }
+    }
+  }
 }
+```
 
-// Cập nhật progress
-async function updateProgress(projectId, progress) {
-    const { error } = await supabase
-        .from('projects')
-        .update({ progress })
-        .eq('id', projectId);
-    
-    if (error) throw error;
+3. Replace placeholders with your actual values
+4. Save and restart Cursor
+</details>
+
+<details>
+<summary><h3>Claude Desktop</h3></summary>
+
+1. Locate config file:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+2. Add MCP server config:
+
+```json
+{
+  "mcpServers": {
+    "mvm": {
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase"],
+      "env": {
+        "SUPABASE_URL": "https://xxxxx.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGc..."
+      }
+    }
+  }
 }
+```
 
-// Usage
-addTask('project-uuid', 'version-uuid', 'Fix login bug');
-updateProgress('project-uuid', 80);
+3. Save and restart Claude Desktop
+4. You should see "MVM" in available tools
+</details>
+
+---
+
+### Step 3: Enable Auto-Detection (Optional)
+
+This makes AI automatically detect MVM projects without manual prompts.
+
+1. Copy content from [`templates/GEMINI_SNIPPET.md`](../templates/GEMINI_SNIPPET.md)
+2. Paste into your agent's global instructions:
+
+| AI Agent | Location |
+|----------|----------|
+| **Antigravity** | `~/.gemini/GEMINI.md` |
+| **Cursor** | `~/.cursor/prompts/global.md` |
+| **Claude Desktop** | Settings → Custom Instructions |
+
+This snippet tells the AI to:
+- Check for `.mvm-project` files on workspace open
+- Automatically query pending tasks
+- Load context dumps for session resumption
+
+---
+
+## Verification
+
+### Test 1: Basic MCP Connection
+
+Open your AI agent and ask:
+
+```
+List all available MCP tools for "mvm" server
+```
+
+**Expected response:**
+```
+Available tools:
+- query (Execute SQL queries)
+- schema (View database schema)
+- ... (other Supabase MCP tools)
+```
+
+### Test 2: Query MVM Database
+
+```
+Query the mvm database: SELECT * FROM projects LIMIT 5
+```
+
+**Expected response:**
+```
+Found X projects:
+1. Project Name 1 (UUID: abc-123...)
+2. Project Name 2 (UUID: def-456...)
+...
+```
+
+### Test 3: Project Context Loading
+
+1. Create a `.mvm-project` file in a test folder:
+```json
+{"projectId":"YOUR_PROJECT_UUID"}
+```
+
+2. Open that folder in your AI agent
+3. Ask: `"What pending tasks does this project have?"`
+
+**Expected behavior:**
+- AI reads `.mvm-project`
+- Queries `SELECT * FROM tasks WHERE project_id = '...' AND is_done = false`
+- Returns task list (or "No pending tasks")
+
+If all three tests pass, your MCP integration is working! ✅
+
+---
+
+## Advanced Usage
+
+### Custom Queries
+
+Since MCP provides direct SQL access, you can ask complex questions:
+
+```
+Query mvm: SELECT version_id, COUNT(*) as task_count 
+FROM tasks WHERE project_id = 'abc-123' 
+GROUP BY version_id
+```
+
+### Context Dump Loading
+
+```
+Get the latest context dump for project abc-123
+```
+
+AI will query:
+```sql
+SELECT * FROM context_dumps 
+WHERE project_id = 'abc-123' 
+ORDER BY created_at DESC 
+LIMIT 1
 ```
 
 ---
 
-## 4. Database Schema Reference
+## Troubleshooting
 
-### projects
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | UUID | Primary key |
-| `name` | TEXT | Format: "Folder/ProjectName" |
-| `progress` | INTEGER | 0-100 |
-| `created_at` | TIMESTAMPTZ | - |
+| Issue | Likely Cause | Solution |
+|-------|-------------|----------|
+| "MCP server 'mvm' not found" | Config not loaded | Restart AI agent after adding config |
+| "Permission denied" | Wrong key type | Use `service_role` key, not `anon` key |
+| "Connection timeout" | Network/firewall | Check internet connection, disable VPN |
+| "Module not found: @supabase/mcp-server-supabase" | npx cache issue | Clear npm cache: `npm cache clean --force` |
+| AI doesn't auto-detect `.mvm-project` | Missing global snippet | Add GEMINI_SNIPPET to global rules (Step 3) |
+| "Invalid SQL syntax" | Incorrect query | Check Supabase schema in dashboard |
 
-### tasks
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | UUID | Primary key |
-| `project_id` | UUID | FK to projects |
-| `version_id` | UUID | FK to versions (optional) |
-| `content` | TEXT | Task description |
-| `is_done` | BOOLEAN | - |
-| `done_at` | TIMESTAMPTZ | When completed |
+### Debug Mode
 
-### versions
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | UUID | Primary key |
-| `project_id` | UUID | FK to projects |
-| `name` | TEXT | e.g. "v1.0 - Initial" |
-| `is_active` | BOOLEAN | Current working version |
-| `changelog` | TEXT | Release notes |
+To see MCP communication logs:
 
-### context_dumps
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | UUID | Primary key |
-| `project_id` | UUID | FK to projects |
-| `mental_model` | TEXT | Current understanding |
-| `next_step_prompt` | TEXT | Prompt for next session |
-| `workspace_location` | TEXT | 'office' or 'home' |
-| `is_read` | BOOLEAN | Mark when loaded |
+**Antigravity:**
+1. Settings → Advanced → Enable Debug Logs
+2. View logs in: `~/.gemini/logs/mcp.log`
 
-### ai_logs
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | UUID | Primary key |
-| `command` | TEXT | Original command |
-| `interpreted_action` | TEXT | Parsed action |
-| `result` | JSONB | Execution result |
-| `status` | TEXT | 'success' / 'failed' |
-| `execution_time_ms` | INTEGER | - |
+**Cursor:**
+- Check Developer Console (Help → Toggle Developer Tools)
 
 ---
 
-## 5. Troubleshooting
+## Security Notes
 
-| Issue | Solution |
-|-------|----------|
-| 401 Unauthorized | Kiểm tra API key trong header |
-| Column not found | Schema chưa migrate, chạy lại `schema.sql` |
-| CORS error | Chỉ xảy ra khi gọi từ browser, dùng backend proxy |
-| Empty response | Kiểm tra project_id/version_id có tồn tại |
+### What MCP Can Access
 
----
+With `service_role` key, MCP has **full database access**:
+- ✅ Read all tables
+- ✅ Insert/update/delete rows
+- ✅ Bypass RLS policies
 
-## 6. Quick Reference
+### Best Practices
 
-```bash
-# Lấy danh sách projects
-curl -H "Authorization: Bearer $API_KEY" https://my-version-manager.vercel.app/api/projects
+1. **Never share `service_role` key publicly**
+2. **Don't commit MCP config to git** (add to `.gitignore`)
+3. **Use separate Supabase project** for testing vs production
+4. **Monitor usage** in Supabase dashboard → Logs
 
-# Thêm task
-curl -X POST -H "Authorization: Bearer $API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{"content": "New task"}' \
-     https://my-version-manager.vercel.app/api/projects/{id}/tasks
+### Alternative: Read-Only Access
 
-# Cập nhật progress
-curl -X PATCH -H "Authorization: Bearer $API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{"progress": 75}' \
-     https://my-version-manager.vercel.app/api/projects/{id}
+If you prefer read-only access, create a custom PostgreSQL role:
+
+```sql
+-- In Supabase SQL Editor
+CREATE ROLE mvm_readonly;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO mvm_readonly;
+-- Create a key with this role (see Supabase docs)
 ```
+
+Then use that key in MCP config instead of `service_role`.
+
+---
+
+## Alternative Approach: Cloudflare Workers MCP
+
+If you prefer a hosted MCP server (no local npx):
+
+1. See [`mcp-server/`](../mcp-server/) directory for Cloudflare Workers setup
+2. Deploy MCP server to Cloudflare
+3. Use HTTP transport instead of stdio
+
+**Pros:**
+- No local dependencies
+- Faster startup
+- Better for teams
+
+**Cons:**
+- Requires Cloudflare account
+- Extra deployment step
+
+Detailed guide: [MCP_SERVER_CODE.md](MCP_SERVER_CODE.md)
+
+---
+
+## Next Steps
+
+Now that MCP is working:
+
+1. **Create `.mvm-project` files** in your active projects
+2. **Use AI to manage tasks**: "Add a task to implement user auth"
+3. **Create context dumps**: "Summarize today's work and create a context dump"
+4. **Auto-resume sessions**: AI will load context on next open
+
+See [GETTING_STARTED.md](GETTING_STARTED.md) for workflow examples.
+
+---
+
+## Support
+
+- [GitHub Issues](https://github.com/kienpro307/version-control/issues)
+- [Troubleshooting Guide](TROUBLESHOOTING.md)
+- [API Documentation](API.md)

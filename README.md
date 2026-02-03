@@ -1,36 +1,186 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# My Version Manager (MVM)
 
-## Getting Started
+> **External Memory System for AI Agents**  
+> Track multi-version projects, context dumps, and task workflows with intelligent AI integration.
 
-First, run the development server:
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/kienpro307/version-control)
+
+---
+
+## 🎯 What is MVM?
+
+MVM is a **project management system designed for AI-assisted development**. It helps AI agents maintain context across sessions by:
+
+- **Version-based task tracking** (v1.0, v2.0, etc.)
+- **Context dumps** with mental models and next-step prompts
+- **Activity logging** for changelogs and retrospectives
+- **Direct database access** via Model Context Protocol (MCP)
+
+---
+
+## ✨ Key Features
+
+### 1. Multi-Version Task Management
+- Organize tasks by version/milestone
+- Automatic progress tracking
+- Drag-and-drop reordering
+- Bulk operations
+
+### 2. AI Agent Integration
+- **MCP Server** for direct Supabase access
+- Auto-resume from context dumps
+- AI command logging
+- Task automation
+
+### 3. Changelog Generation
+- AI-powered changelog from activities
+- Diff summaries for code changes
+- Version-based filtering
+
+### 4. Local File Access
+- Link projects to local directories
+- AI can list project files
+- Cross-machine sync via MCP
+
+---
+
+## 🚀 Quick Start
+
+### For New Users
+
+1. **[Deploy & Setup](docs/GETTING_STARTED.md)** - Complete setup guide (Supabase + Vercel)
+2. **[MCP Integration](docs/MCP_INTEGRATION.md)** - Connect to AI agents (Antigravity/Cursor/Claude Desktop)
+3. **[Verify Setup](#verify-integration)** - Test with sample queries
+
+### For Developers
 
 ```bash
+# Clone repository
+git clone https://github.com/kienpro307/version-control.git
+cd my-version-manager
+
+# Install dependencies
+npm install
+
+# Setup environment (.env.local)
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Run locally
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+See [SETUP.md](docs/SETUP.md) for detailed development instructions.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📚 Documentation
 
-## Learn More
+| Document | Purpose |
+|----------|---------|
+| [GETTING_STARTED.md](docs/GETTING_STARTED.md) | End-to-end setup for new users |
+| [MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) | Connect AI agents to MVM |
+| [SETUP.md](docs/SETUP.md) | Local development & deployment |
+| [API.md](docs/API.md) | REST API reference |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues & solutions |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🧠 How AI Agents Use MVM
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Automatic Context Loading
 
-## Deploy on Vercel
+When you open a project with `.mvm-project` file, the AI agent:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Reads `projectId` from `.mvm-project`
+2. Queries MVM database via MCP
+3. Loads pending tasks and latest context dump
+4. Resumes from `next_step_prompt` if available
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Example Workflow
+
+```
+USER: What should I work on next?
+AI: [Reads .mvm-project → Queries MVM → Finds context dump]
+    "Based on the context dump, you were working on lazy loading 
+    pagination. The next step is to implement the frontend UI 
+    with intersection observer..."
+```
+
+See [MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) for setup details.
+
+---
+
+## 🔧 Technology Stack
+
+- **Frontend**: Next.js 16 (App Router, Turbopack)
+- **Database**: Supabase (PostgreSQL)
+- **Deployment**: Vercel
+- **AI Integration**: Model Context Protocol (MCP)
+- **UI**: React, TailwindCSS, dnd-kit
+
+---
+
+## 📖 Core Concepts
+
+### Projects & Versions
+- **Project**: Top-level container (e.g., "My App")
+- **Version**: Milestones within a project (e.g., "v1.0", "v2.0")
+- **Task**: Work items linked to versions
+
+### Context Dumps
+AI agents create context dumps at session end:
+```json
+{
+  "mental_model": "Summary of what was accomplished",
+  "next_step_prompt": "Specific instruction for next session",
+  "workspace_location": "office" | "home"
+}
+```
+
+### Activities
+Auto-generated logs from:
+- Task creation/completion
+- Version changes
+- AI commands
+
+Used for changelog generation.
+
+---
+
+## 🔗 Verify Integration
+
+After setup, test your MCP connection:
+
+```bash
+# Ask your AI agent:
+"Read .mvm-project and list all pending tasks"
+
+# Expected behavior:
+# 1. AI reads projectId from .mvm-project
+# 2. Queries: SELECT * FROM tasks WHERE project_id = '...' AND is_done = false
+# 3. Returns task list
+```
+
+If this works, your integration is successful! 🎉
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Please read our [Contributing Guide](CONTRIBUTING.md) first.
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🙋 Support
+
+- **Issues**: [GitHub Issues](https://github.com/kienpro307/version-control/issues)
+- **Documentation**: [docs/](docs/)
+- **Troubleshooting**: [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)

@@ -115,4 +115,23 @@ node mvm-setup.js <project-path> <project-uuid>
 ```
 3. Verify bằng `/mvm` command
 
+### 🔌 MVM MCP Server Check (Per-Machine, One-Time)
+Nếu không thể query Supabase (403/connection error), hướng dẫn user:
+1. Mở file: `C:\Users\pc\.gemini\antigravity\mcp_config.json`
+2. Thêm block `mvm` nếu chưa có:
+```json
+"mvm": {
+  "command": "mcp-server-supabase",
+  "args": [],
+  "env": {
+    "SUPABASE_ACCESS_TOKEN": "<ask user for token>"
+  },
+  "disabled": false
+}
+```
+3. Restart Antigravity
+
+**SUPABASE_ACCESS_TOKEN**: Lấy từ https://supabase.com/dashboard/account/tokens
+
 (End of Global Config)
+

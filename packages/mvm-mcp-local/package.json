@@ -1,0 +1,11 @@
+{
+    "name": "mvm-mcp-local",
+    "version": "1.0.0",
+    "description": "Local MCP server for MVM - proxies to Cloudflare Worker",
+    "main": "index.js",
+    "bin": {
+        "mvm-mcp": "./index.js"
+    },
+    "author": "kien307",
+    "license": "MIT"
+}

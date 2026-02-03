@@ -85,6 +85,8 @@ export default function Home() {
     reorderTask: apiReorderTask,
     moveTask: apiMoveTask,
     updateTaskDetails: apiUpdateTaskDetails,
+    loadMoreTasks,
+    getVersionPaginationState,
   } = useTasks(selectedProjectId || null);
   const { activities, loading: activitiesLoading, updateActivity } = useActivities(selectedProjectId || null);
   const { logs: aiLogs, loading: aiLogsLoading, logAICommand } = useAILogs();
@@ -634,46 +636,58 @@ export default function Home() {
                 </div>
               )}
 
-              {displayVersions.map(version => (
-                <div key={version.id}>
-                  <VersionSection
-                    version={version}
-                    tasks={tasksByVersion[version.id]?.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase())) || []}
-                    onAddTask={(content: string) => handleAddTask(content, version.id)}
-                    onToggleDone={apiToggleDone}
-                    onUpdateTask={apiUpdateTask}
-                    onDeleteTask={apiDeleteTask}
-                    onOpenTask={task => setSelectedTask(task)}
-                    onGenerateChangelog={() => setChangelogVersion(version)}
-                    onDeleteVersion={apiDeleteVersion}
-                    onSetActiveVersion={apiSetActiveVersion}
-                    onUpdateVersion={apiUpdateVersion}
-                    isSelectionMode={isSelectionMode}
-                    selectedTaskIds={selectedTaskIds}
-                    onToggleSelectTask={toggleTaskSelection}
-                  />
-                </div>
-              ))}
-
-              {/* Unassigned Section */}
-              {tasksByVersion.unassigned.length > 0 && (
-                (!searchQuery || tasksByVersion.unassigned.some(t => t.content.toLowerCase().includes(searchQuery.toLowerCase()))) && (
-                  <div>
+              {displayVersions.map(version => {
+                const paginationState = getVersionPaginationState(version.id);
+                return (
+                  <div key={version.id}>
                     <VersionSection
-                      version={{ id: 'unassigned', projectId: selectedProjectId, name: 'Unassigned', isActive: false, createdAt: '' }}
-                      tasks={tasksByVersion.unassigned.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase()))}
-                      onAddTask={(content: string) => handleAddTask(content, null)}
+                      version={version}
+                      tasks={tasksByVersion[version.id]?.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase())) || []}
+                      onAddTask={(content: string) => handleAddTask(content, version.id)}
                       onToggleDone={apiToggleDone}
                       onUpdateTask={apiUpdateTask}
                       onDeleteTask={apiDeleteTask}
                       onOpenTask={task => setSelectedTask(task)}
-                      isUnassigned
+                      onGenerateChangelog={() => setChangelogVersion(version)}
+                      onDeleteVersion={apiDeleteVersion}
+                      onSetActiveVersion={apiSetActiveVersion}
+                      onUpdateVersion={apiUpdateVersion}
                       isSelectionMode={isSelectionMode}
                       selectedTaskIds={selectedTaskIds}
                       onToggleSelectTask={toggleTaskSelection}
+                      onLoadMore={() => loadMoreTasks(version.id)}
+                      hasMore={paginationState.hasMore}
+                      isLoadingMore={paginationState.loading}
                     />
                   </div>
-                )
+                );
+              })}
+
+              {/* Unassigned Section */}
+              {tasksByVersion.unassigned.length > 0 && (
+                (!searchQuery || tasksByVersion.unassigned.some(t => t.content.toLowerCase().includes(searchQuery.toLowerCase()))) && (() => {
+                  const paginationState = getVersionPaginationState(null);
+                  return (
+                    <div>
+                      <VersionSection
+                        version={{ id: 'unassigned', projectId: selectedProjectId, name: 'Unassigned', isActive: false, createdAt: '' }}
+                        tasks={tasksByVersion.unassigned.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase()))}
+                        onAddTask={(content: string) => handleAddTask(content, null)}
+                        onToggleDone={apiToggleDone}
+                        onUpdateTask={apiUpdateTask}
+                        onDeleteTask={apiDeleteTask}
+                        onOpenTask={task => setSelectedTask(task)}
+                        isUnassigned
+                        isSelectionMode={isSelectionMode}
+                        selectedTaskIds={selectedTaskIds}
+                        onToggleSelectTask={toggleTaskSelection}
+                        onLoadMore={() => loadMoreTasks(null)}
+                        hasMore={paginationState.hasMore}
+                        isLoadingMore={paginationState.loading}
+                      />
+                    </div>
+                  );
+                })()
               )}
             </DndContext>
 

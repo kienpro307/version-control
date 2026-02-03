@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Package, ChevronDown, Plus, Search, Command, Menu, CheckSquare, X, Clock, Brain } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Package, Plus, Search, Command, Menu, CheckSquare, X, Clock, Brain } from 'lucide-react';
 import VersionSection from '@/components/VersionSection';
 import CreateVersionModal from '@/components/CreateVersionModal';
 import CommandPalette from '@/components/CommandPalette';
@@ -12,14 +12,19 @@ import ActivityDrawer from '@/components/ActivityDrawer';
 import ContextDumpModal from '@/components/ContextDumpModal';
 import ContextBanner from '@/components/ContextBanner';
 import WorkflowPanel from '@/components/WorkflowPanel';
+import AICommandBar from '@/components/AICommandBar';
 import {
   useProjects,
   useVersions,
   useTasks,
   useSettings,
   useActivities,
-  useContextDumps
+  useContextDumps,
+  useAILogs
 } from '@/hooks';
+import { parseAICommand } from '@/lib/commandParser';
+import { executeCommand } from '@/lib/commandExecutor';
+import { supabase } from '@/lib/supabase';
 import type { Task, Version } from '@/lib/types';
 import {
   DndContext,
@@ -38,7 +43,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 export default function Home() {
   // --- Supabase Hooks ---
-  const { projects, createProject: apiCreateProject, updateProject: apiUpdateProject, deleteProject: apiDeleteProject, loading: projectsLoading } = useProjects();
+  const { projects, createProject: apiCreateProject, updateProject: apiUpdateProject, deleteProject: apiDeleteProject, renameFolder: apiRenameFolder, updateProjectLocalPath, loading: projectsLoading, refetch: refetchProjects } = useProjects();
   const { settings, updateLastProject: apiUpdateLastProject } = useSettings();
 
   // Local state for selection (though we try to sync with stats/settings)
@@ -82,6 +87,7 @@ export default function Home() {
     updateTaskDetails: apiUpdateTaskDetails,
   } = useTasks(selectedProjectId || null);
   const { activities, loading: activitiesLoading, updateActivity } = useActivities(selectedProjectId || null);
+  const { logs: aiLogs, loading: aiLogsLoading, logAICommand } = useAILogs();
   const { latestDump, createContextDump, markAsRead, getUnreadDump } = useContextDumps(selectedProjectId || null);
 
   // --- UI State ---
@@ -89,8 +95,6 @@ export default function Home() {
   const [showActivityDrawer, setShowActivityDrawer] = useState(false);
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [showAddProject, setShowAddProject] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
@@ -98,6 +102,7 @@ export default function Home() {
   const [changelogVersion, setChangelogVersion] = useState<Version | null>(null);
   const [showContextDumpModal, setShowContextDumpModal] = useState(false);
   const [showWorkflowPanel, setShowWorkflowPanel] = useState(false);
+  const [showAICommandBar, setShowAICommandBar] = useState(false);
   const [workflowLocation, setWorkflowLocation] = useState<'office' | 'home'>('office');
 
   // Bulk Actions State
@@ -110,7 +115,7 @@ export default function Home() {
       activationConstraint: { delay: 100, tolerance: 5 }, // Slight delay to prevent accidents
     }),
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+      coordinateGetter: sortableKeyboardCoordinates, // eslint-disable-line @typescript-eslint/no-explicit-any
     })
   );
 
@@ -156,7 +161,7 @@ export default function Home() {
         case 'k':
           if (e.metaKey || e.ctrlKey) {
             e.preventDefault();
-            document.querySelector<HTMLInputElement>('input[type="text"][placeholder*="Search"]')?.focus();
+            setShowAICommandBar(prev => !prev);
           }
           break;
         case '?':
@@ -166,6 +171,7 @@ export default function Home() {
         case 'escape':
           setShowProjectDropdown(false);
           setShowCommandPalette(false);
+          setShowAICommandBar(false);
           setShowShortcuts(false);
           break;
       }
@@ -232,22 +238,7 @@ export default function Home() {
 
   // --- Actions ---
 
-  const handleSelectProject = (id: string) => {
-    setSelectedProjectId(id);
-    setShowProjectDropdown(false);
-  };
 
-  const handleAddProject = async () => {
-    if (newProjectName.trim()) {
-      const newProject = await apiCreateProject(newProjectName.trim());
-      if (newProject) {
-        setSelectedProjectId(newProject.id);
-        setNewProjectName('');
-        setShowAddProject(false);
-        setShowProjectDropdown(false);
-      }
-    }
-  };
 
   const handleAddTask = async (content: string, versionId: string | null) => {
     await apiCreateTask(content, versionId); // Hook handles SetTasks
@@ -283,6 +274,7 @@ export default function Home() {
     { id: 'export', label: 'Export JSON', shortcut: 'Ctrl+E', action: handleExport },
     { id: 'shortcuts', label: 'Show Shortcuts', shortcut: '?', action: () => setShowShortcuts(true) },
     { id: 'agent-dump', label: 'Agent: Context Dump', shortcut: '/agent', action: () => setShowContextDumpModal(true) },
+    { id: 'ai-command', label: 'AI Command Bar', shortcut: 'Cmd+K', action: () => setShowAICommandBar(true) },
   ];
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragTaskId(event.active.id as string);
@@ -379,10 +371,40 @@ export default function Home() {
     clearSelection();
   };
 
+
+
   const handleReleaseVersion = async () => {
     if (changelogVersion && apiUpdateVersion) {
       await apiUpdateVersion(changelogVersion.id, { isActive: false });
       setChangelogVersion(null);
+    }
+  };
+
+  const handleAIExecute = async (input: string) => {
+    const command = parseAICommand(input);
+    const startTime = performance.now();
+
+    // Execute
+    const result = await executeCommand(command, supabase);
+    const endTime = performance.now();
+
+    // Log
+    await logAICommand(
+      input,
+      command.action,
+      result,
+      result.success ? 'success' : 'failure',
+      endTime - startTime
+    );
+
+    if (result.success) {
+      if (command.action === 'update_progress') {
+        refetchProjects();
+      }
+      // Assuming commandExecutor handles data updates, we might need more granular refetching here
+      // For now, simpler is better.
+    } else {
+      throw new Error(result.message);
     }
   };
 
@@ -391,7 +413,7 @@ export default function Home() {
   if (projectsLoading && projects.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
       </div>
     );
   }
@@ -399,7 +421,7 @@ export default function Home() {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-black font-sans text-slate-900 dark:text-slate-100 selection:bg-emerald-100 dark:selection:bg-emerald-900 selection:text-emerald-900 dark:selection:text-emerald-100">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100 selection:bg-green-100 dark:selection:bg-green-900 selection:text-green-900 dark:selection:text-green-100">
 
       {/* Sidebar */}
       <Sidebar
@@ -409,22 +431,21 @@ export default function Home() {
         onCreateProject={apiCreateProject}
         onUpdateProject={apiUpdateProject}
         onDeleteProject={apiDeleteProject}
+        onRenameFolder={apiRenameFolder}
         onOpenActivity={() => setShowActivityDrawer(true)}
         onOpenWorkflow={() => {
           setWorkflowLocation('office');
           setShowWorkflowPanel(true);
         }}
+        onSetLocalPath={async (projectId, currentPath) => {
+          const newPath = window.prompt('Set local path for project:', currentPath || '');
+          if (newPath !== null && newPath !== currentPath) {
+            await updateProjectLocalPath(projectId, newPath);
+          }
+        }}
         width={sidebarWidth}
         setWidth={setSidebarWidth}
       />
-
-      {/* DEBUG BANNER - TEMPORARY */}
-      <div className="fixed bottom-4 right-4 z-[9999] bg-black/80 text-white p-4 rounded-lg text-xs font-mono max-w-sm pointer-events-none">
-        <p>Project ID: {selectedProjectId}</p>
-        <p>Versions: {versions.length}</p>
-        <p>Tasks: {tasks.length}</p>
-        {/* We don't have tasksError exposed from useTasks, need to assume if 0 and ProjectID valid */}
-      </div>
 
 
       {/* Main Content Area */}
@@ -435,6 +456,11 @@ export default function Home() {
 
         {/* Top Bar */}
         <div className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm transition-all duration-200">
+          <AICommandBar
+            isOpen={showAICommandBar}
+            onClose={() => setShowAICommandBar(false)}
+            onExecute={handleAIExecute}
+          />
           <div className="max-w-5xl mx-auto px-4 py-3 h-16 flex items-center justify-between">
             {/* Left: Breadcrumb / Project Name */}
             <div className="flex items-center gap-3">
@@ -443,7 +469,7 @@ export default function Home() {
               </button>
 
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center font-bold">
+                <div className="w-8 h-8 bg-green-100 text-green-600 rounded-lg flex items-center justify-center font-bold">
                   {selectedProject?.name.charAt(0) || 'P'}
                 </div>
                 <h1 className="font-bold text-slate-800 dark:text-slate-100 text-lg sm:text-xl truncate max-w-[150px] sm:max-w-xs transition-all">
@@ -455,13 +481,13 @@ export default function Home() {
             <div className="flex flex-1 items-center justify-end gap-3 ml-4">
               {/* Search Bar */}
               <div className="flex-1 max-w-xl relative group hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-green-500 transition-colors" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search tasks..."
-                  className="w-full pl-9 pr-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-slate-400"
+                  className="w-full pl-9 pr-10 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-green-500/20 transition-all placeholder:text-slate-400"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
                   <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-1.5 font-mono text-[10px] font-medium text-slate-500 dark:text-slate-400 opacity-100">
@@ -474,14 +500,14 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowVersionModal(true)}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 active:scale-95 transition-all shadow-sm hover:shadow"
+                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 active:scale-95 transition-all shadow-sm hover:shadow"
                 >
                   <Plus className="w-4 h-4" />
                   <span>New Version</span>
                 </button>
                 <button
                   onClick={() => setShowVersionModal(true)}
-                  className="sm:hidden flex items-center justify-center w-9 h-9 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-sm"
+                  className="sm:hidden flex items-center justify-center w-9 h-9 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm"
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -538,8 +564,8 @@ export default function Home() {
               </div>
               <div className="h-8 w-px bg-slate-200/60 dark:bg-slate-700/60" />
               <div className="flex items-baseline gap-2.5 group cursor-default">
-                <span className="text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight group-hover:text-emerald-600 transition-colors">{stats.done}</span>
-                <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-emerald-600/80 transition-colors">completed</span>
+                <span className="text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight group-hover:text-green-600 transition-colors">{stats.done}</span>
+                <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-green-600/80 transition-colors">completed</span>
               </div>
               <div className="h-8 w-px bg-slate-200/60 dark:bg-slate-700/60" />
               <div className="flex items-baseline gap-2.5 group cursor-default">
@@ -553,7 +579,7 @@ export default function Home() {
           {searchQuery && (
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-700">
-                Search results for "{searchQuery}"
+                Search results for &quot;{searchQuery}&quot;
               </h2>
               <button
                 onClick={() => setSearchQuery('')}
@@ -565,7 +591,7 @@ export default function Home() {
           )}
 
           {/* Version Sections */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCorners}
@@ -576,16 +602,16 @@ export default function Home() {
               {displayVersions.length === 0 && tasksByVersion.unassigned.length === 0 && !versionsLoading && (
                 <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
                   <div className="relative mb-8 group cursor-pointer" onClick={() => setShowVersionModal(true)}>
-                    <div className="absolute inset-0 bg-emerald-100 dark:bg-emerald-900/30 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-green-100 dark:bg-green-900/30 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-500" />
                     <div className="relative w-24 h-24 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl shadow-xl flex items-center justify-center border border-white/60 dark:border-slate-700 transform group-hover:-translate-y-2 transition-transform duration-300">
-                      <Package className="w-10 h-10 text-emerald-600/80 group-hover:text-emerald-600 transition-colors" />
+                      <Package className="w-10 h-10 text-green-600/80 group-hover:text-green-600 transition-colors" />
                     </div>
                     {/* Decorative elements */}
                     <div className="absolute -right-4 -bottom-2 w-12 h-12 bg-white dark:bg-slate-800 rounded-xl shadow-lg flex items-center justify-center border border-slate-50 dark:border-slate-700 transform rotate-12 group-hover:rotate-6 transition-transform duration-300 delay-75">
                       <div className="w-6 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full" />
                     </div>
-                    <div className="absolute -left-3 -top-2 w-8 h-8 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg shadow-md flex items-center justify-center transform -rotate-6 group-hover:-rotate-12 transition-transform duration-300 delay-100">
-                      <Plus className="w-4 h-4 text-emerald-400" />
+                    <div className="absolute -left-3 -top-2 w-8 h-8 bg-green-50 dark:bg-green-900/20 rounded-lg shadow-md flex items-center justify-center transform -rotate-6 group-hover:-rotate-12 transition-transform duration-300 delay-100">
+                      <Plus className="w-4 h-4 text-green-400" />
                     </div>
                   </div>
 
@@ -597,7 +623,7 @@ export default function Home() {
                   {!searchQuery && (
                     <button
                       onClick={() => setShowVersionModal(true)}
-                      className="group relative px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95 transition-all"
+                      className="group relative px-6 py-3 bg-green-600 text-white font-semibold rounded-xl shadow-lg shadow-green-600/20 hover:shadow-green-600/30 hover:bg-green-700 active:scale-95 transition-all"
                     >
                       <span className="flex items-center gap-2">
                         <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
@@ -723,7 +749,7 @@ export default function Home() {
       )}
 
       {showProjectDropdown && (
-        <div className="fixed inset-0 z-40" onClick={() => { setShowProjectDropdown(false); setShowAddProject(false); }} />
+        <div className="fixed inset-0 z-40" onClick={() => { setShowProjectDropdown(false); }} />
       )}
 
       {/* Task Drawer */}
@@ -743,6 +769,9 @@ export default function Home() {
         activities={activities}
         loading={activitiesLoading}
         onUpdateActivity={updateActivity}
+        aiLogs={aiLogs}
+        aiLogsLoading={aiLogsLoading}
+        onRunCommand={handleAIExecute}
       />
 
       {/* Changelog Modal */}
@@ -790,11 +819,22 @@ export default function Home() {
         onMarkContextRead={() => latestDump && markAsRead(latestDump.id)}
       />
 
+      {/* AI Command Bar */}
+      <AICommandBar
+        isOpen={showAICommandBar}
+        onClose={() => setShowAICommandBar(false)}
+        onExecute={async (command) => {
+          console.log('[AI Command] Executing:', command);
+          // Mock delay
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }}
+      />
+
       {/* Floating Bulk Action Bar */}
       {selectedTaskIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 lg:ml-32 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-200">
           <div className="text-sm font-semibold flex items-center gap-2">
-            <div className="bg-emerald-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            <div className="bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               {selectedTaskIds.size}
             </div>
             Selected

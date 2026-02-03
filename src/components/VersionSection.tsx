@@ -102,7 +102,7 @@ export default function VersionSection({
 
     const doneCount = tasks.filter(t => t.isDone).length;
     const totalCount = tasks.length;
-    const progressPercent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+    // const progressPercent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
     const borderColor = isUnassigned
         ? 'border-l-amber-500'
@@ -114,7 +114,7 @@ export default function VersionSection({
         <div className={`bg-white dark:bg-slate-900 border border-l-4 rounded-xl shadow-sm hover:shadow-md transition-shadow ${borderColor} ${isUnassigned ? 'border-amber-200 dark:border-amber-900/50' : version.isActive ? 'border-emerald-200 dark:border-emerald-900/50' : 'border-slate-200 dark:border-slate-800'}`}>
             {/* Header */}
             <div
-                className={`w-full px-4 py-3 transition-colors relative ${isUnassigned ? 'bg-amber-50/50 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20' : version.isActive ? 'bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/20' : 'bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
+                className={`w-full px-4 py-1.5 transition-colors relative ${isUnassigned ? 'bg-amber-50/50 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20' : version.isActive ? 'bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/20' : 'bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
             >
                 {/* Main Header Row */}
                 <div className="flex items-center gap-3">
@@ -132,7 +132,7 @@ export default function VersionSection({
                             />
                         ) : (
                             <span
-                                className={`font-mono font-semibold truncate block text-sm ${isUnassigned ? 'text-amber-700 dark:text-amber-500' : version.isActive ? 'text-emerald-700 dark:text-emerald-500' : 'text-slate-700 dark:text-slate-300'}`}
+                                className={`font-mono font-semibold truncate block text-xs ${isUnassigned ? 'text-amber-700 dark:text-amber-500' : version.isActive ? 'text-emerald-700 dark:text-emerald-500' : 'text-slate-700 dark:text-slate-300'}`}
                                 onDoubleClick={() => {
                                     if (!isUnassigned && onUpdateVersion) setIsEditingName(true);
                                 }}
@@ -202,17 +202,17 @@ export default function VersionSection({
                 <div className="flex items-center gap-2 ml-auto">
                     <div className="flex items-center gap-2">
                         {version.isActive && !isUnassigned && (
-                            <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-full uppercase tracking-wide">Active</span>
+                            <span className="px-1.5 py-0 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-full uppercase tracking-wide">Active</span>
                         )}
                         {!version.isActive && !isUnassigned && (
-                            <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full uppercase tracking-wide">Released</span>
+                            <span className="px-1.5 py-0 text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full uppercase tracking-wide">Released</span>
                         )}
                         {isUnassigned && (
-                            <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-full uppercase tracking-wide">Backlog</span>
+                            <span className="px-1.5 py-0 text-[9px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-full uppercase tracking-wide">Backlog</span>
                         )}
 
                         {!isUnassigned && (
-                            <span className="px-2 py-0.5 text-[10px] text-slate-400 dark:text-slate-500 font-medium bg-white/50 dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-800" title={new Date(version.createdAt).toLocaleString()}>
+                            <span className="px-1.5 py-0 text-[10px] text-slate-400 dark:text-slate-500 font-medium bg-white/50 dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-800" title={new Date(version.createdAt).toLocaleString()}>
                                 {new Date(version.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                             </span>
                         )}
@@ -227,7 +227,7 @@ export default function VersionSection({
             <div ref={setNodeRef} className="border-t border-slate-100 dark:border-slate-800 min-h-[50px]">
                 {sortedTasks.length > 0 ? (
                     <SortableContext items={sortedTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <div>
                             {sortedTasks.map(task => (
                                 <SortableTaskRow
                                     key={task.id}
@@ -250,7 +250,7 @@ export default function VersionSection({
                 )}
 
                 {/* Add Task Input */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
                     <Plus className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                     <input
                         data-add-task
@@ -259,12 +259,12 @@ export default function VersionSection({
                         onChange={e => setNewTaskContent(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleAddTask()}
                         placeholder="Add task..."
-                        className="flex-1 bg-transparent text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none dark:text-slate-200"
+                        className="flex-1 bg-transparent text-xs placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none dark:text-slate-200"
                     />
                     {newTaskContent && (
                         <button
                             onClick={handleAddTask}
-                            className="px-4 py-2 text-sm font-semibold bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 active:bg-blue-800 transition-all shadow-sm"
+                            className="px-3 py-1 text-xs font-semibold bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-600 active:bg-blue-800 transition-all shadow-sm"
                         >
                             Add Task
                         </button>
@@ -355,7 +355,7 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
     };
 
     return (
-        <div className={`group flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isSelected ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+        <div className={`group flex items-center gap-2 px-4 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isSelected ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
 
             {/* Selection Checkbox */}
             {isSelectionMode && (
@@ -374,7 +374,7 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
                     onClick={() => onToggleDone(task.id, !task.isDone)}
                     className={`
                         flex-shrink-0 flex items-center justify-center
-                        w-11 h-11 -ml-2 rounded-lg
+                        w-7 h-7 -ml-1 rounded-md
                         transition-all duration-150 ease-out
                         active:scale-90
                         ${task.isDone
@@ -384,7 +384,7 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
                     `}
                     title={task.isDone ? 'Mark as pending' : 'Mark as done'}
                 >
-                    {task.isDone ? <CheckCircle2 className="w-6 h-6" /> : <Circle className="w-6 h-6" />}
+                    {task.isDone ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
                 </button>
             )}
 
@@ -401,7 +401,7 @@ function TaskRow({ task, onToggleDone, onUpdate, onDelete, onOpen, isSelectionMo
             ) : (
                 <span
                     onDoubleClick={() => setIsEditing(true)}
-                    className="flex-1 text-sm cursor-text text-slate-700 dark:text-slate-300"
+                    className="flex-1 text-xs cursor-text text-slate-700 dark:text-slate-300 font-medium"
                 >
                     {task.content}
                 </span>

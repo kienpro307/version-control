@@ -8,14 +8,22 @@ const https = require('https');
 
 const MCP_ENDPOINT = 'https://my-version-manager-mcp.kien307.workers.dev';
 
-// JSON-RPC helper
-function jsonRpc(method, params, id) {
-    return JSON.stringify({
+// Handle MCP initialization locally (required by MCP protocol)
+function handleInitialize(id) {
+    return {
         jsonrpc: '2.0',
-        method,
-        params,
-        id
-    });
+        id,
+        result: {
+            protocolVersion: '2024-11-05',
+            capabilities: {
+                tools: {}
+            },
+            serverInfo: {
+                name: 'mvm-mcp',
+                version: '1.0.0'
+            }
+        }
+    };
 }
 
 // Call remote MCP
@@ -60,7 +68,18 @@ rl.on('line', async (line) => {
     try {
         const request = JSON.parse(line);
 
-        // Forward to remote MCP
+        // Handle initialization locally
+        if (request.method === 'initialize') {
+            console.log(JSON.stringify(handleInitialize(request.id)));
+            return;
+        }
+
+        // Handle notifications (no response needed)
+        if (request.method === 'notifications/initialized') {
+            return;
+        }
+
+        // Forward other methods to remote MCP
         const response = await callRemoteMcp(request);
 
         // Ensure proper JSON-RPC format

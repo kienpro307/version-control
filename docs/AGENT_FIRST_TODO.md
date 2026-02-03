@@ -95,22 +95,23 @@
 
 ---
 
-## Phase 4: Multi-repo Support (Tuist) 📦
+## Phase 4: Multi-repo Support (Tuist) 📦 — DEFERRED
 
-> **Note**: Bạn chưa dùng Tuist, nên phase này là research + planning
+> **Status**: Deferred - Không cần thiết cho workflow hiện tại (chỉ 1 main iOS app, modules còn nhỏ, SPM đủ dùng)
+> **Revisit khi**: Có 2+ main apps, build time > 10 phút, hoặc team > 1 người
 
 ### 4.1 Research Tuist
 
-- [ ] Đọc docs Tuist: https://docs.tuist.io
-- [ ] Hiểu cách Tuist manifest định nghĩa multi-repo
-- [ ] So sánh với SPM workspaces hiện tại
-- [ ] Quyết định có migrate sang Tuist không
+- [ ] ~~Đọc docs Tuist: https://docs.tuist.io~~ (Deferred)
+- [ ] ~~Hiểu cách Tuist manifest định nghĩa multi-repo~~ (Deferred)
+- [ ] ~~So sánh với SPM workspaces hiện tại~~ (Deferred)
+- [ ] ~~Quyết định có migrate sang Tuist không~~ (Deferred)
 
 ### 4.2 Planning (nếu quyết định dùng Tuist)
 
-- [ ] List 8 repos iOS Native cần quản lý
-- [ ] Draft `Project.swift` manifest
-- [ ] Tạo migration plan từ SPM → Tuist
+- [ ] ~~List 8 repos iOS Native cần quản lý~~ (Deferred)
+- [ ] ~~Draft `Project.swift` manifest~~ (Deferred)
+- [ ] ~~Tạo migration plan từ SPM → Tuist~~ (Deferred)
 
 ---
 
@@ -149,7 +150,7 @@
 
 ### 7.1 Database Schema Updates
 
-- [ ] Tạo bảng `ai_logs` để lưu lịch sử lệnh AI:
+- [x] Tạo bảng `ai_logs` để lưu lịch sử lệnh AI:
   ```sql
   - command: TEXT (lệnh người dùng nhập)
   - interpreted_action: TEXT (action đã parse)
@@ -157,60 +158,60 @@
   - status: TEXT ('pending' | 'success' | 'failed')
   - execution_time_ms: INTEGER
   ```
-- [ ] Thêm cột `progress` (INTEGER) vào bảng `projects`
+- [x] Thêm cột `progress` (INTEGER) vào bảng `projects`
 - [ ] Thêm cột `local_path` (TEXT) vào bảng `projects` (optional, cho file access)
-- [ ] Run migration trên Supabase
+- [x] Run migration trên Supabase
 
 ### 7.2 Hooks & API
 
-- [ ] Tạo hook `useAILogs.ts`:
+- [x] Tạo hook `useAILogs.ts`:
   - `createLog(command, action, result, status)`
   - `getRecentLogs(projectId, limit)`
-- [ ] Update `useProjects.ts`:
+- [x] Update `useProjects.ts`:
   - Thêm `updateProgress(projectId, progress)`
   - Fetch và display `progress` field
 
 ### 7.3 Command Parser (Client-side)
 
-- [ ] Tạo `src/lib/commandParser.ts`:
+- [x] Tạo `src/lib/commandParser.ts`:
   - Parse "Cập nhật tiến độ X lên Y%" → `{ action: 'update_progress', project: 'X', value: Y }`
   - Parse "Thêm task: ABC" → `{ action: 'create_task', content: 'ABC' }`
   - Parse "Hoàn thành task ABC" → `{ action: 'complete_task', taskName: 'ABC' }`
   - Parse "Liệt kê file trong X" → `{ action: 'list_files', project: 'X' }`
-- [ ] Viết unit tests cho parser
+- [x] Viết unit tests cho parser
 
 ### 7.4 AI Command Bar Component
 
-- [ ] Tạo `src/components/AICommandBar.tsx`:
+- [x] Tạo `src/components/AICommandBar.tsx`:
   - Input field style nổi bật (center stage)
   - Placeholder: "Ask AI: Update PDFReader progress to 80%..."
   - Keyboard shortcut: `Cmd+K` để focus
   - Loading state khi đang xử lý
   - History dropdown (lệnh gần đây)
-- [ ] Integrate vào TopBar hoặc dưới Stats Ribbon
+- [x] Integrate vào TopBar hoặc dưới Stats Ribbon
 
 ### 7.5 Command Execution Logic
 
-- [ ] Tạo `src/lib/commandExecutor.ts`:
-  - `executeCommand(parsedCommand)` → gọi hooks tương ứng
-  - Log vào `ai_logs` table
-  - Return success/error message
-- [ ] Hiển thị toast notification sau khi thực hiện lệnh
+- [x] Tạo `src/lib/commandExecutor.ts`:
+  - [x] `executeCommand(parsedCommand)` → gọi hooks tương ứng
+  - [x] Log vào `ai_logs` table (handled via MCP/UI)
+  - [x] Return success/error message
+- [x] Hiển thị toast notification sau khi thực hiện lệnh
 
 ### 7.6 MCP Server Updates
 
-- [ ] Thêm tool `update_project_progress`:
-  - Input: `{ projectId, progress }`
-  - Update DB và return success
-- [ ] Thêm tool `log_ai_action`:
-  - Input: `{ command, action, result }`
-  - Lưu vào `ai_logs`
+- [x] Thêm tool `update_project_progress`:
+  - [x] Input: `{ projectId, progress }`
+  - [x] Update DB và return success
+- [x] Thêm tool `log_ai_action`:
+  - [x] Input: `{ command, action, result }`
+  - [x] Lưu vào `ai_logs`
 - [ ] (Optional) Thêm tool `list_project_files`:
   - Nếu dùng file tree snapshot approach
 
 ### 7.7 Dashboard UI Updates
 
-- [ ] Hiển thị progress bar cho mỗi project trong Sidebar
+- [x] ~~Hiển thị progress bar cho mỗi project trong Sidebar~~ (Removed per user request)
 - [ ] Thêm AI Logs panel vào ActivityDrawer hoặc panel riêng
 - [ ] Quick actions từ AI suggestions
 

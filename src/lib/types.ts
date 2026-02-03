@@ -2,6 +2,9 @@ export interface Project {
     id: string;
     name: string;
     createdAt: string;
+    progress: number;
+    incompleteTaskCount?: number;
+    localPath?: string;
 }
 
 export interface Version {
@@ -40,5 +43,15 @@ export interface Activity {
     description: string | null;
     diff_summary: string | null;
     created_at: string;
-    metadata: any;
+    metadata: Record<string, unknown>;
+}
+
+export interface AILog {
+    id: string;
+    command: string;
+    interpreted_action: string | null;
+    result: unknown;
+    status: 'success' | 'failure' | 'pending';
+    execution_time_ms: number | null;
+    created_at: string;
 }

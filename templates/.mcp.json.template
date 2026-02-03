@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "MCP configuration for MyVersionManager integration",
+  "servers": {
+    "mvm": {
+      "url": "https://mvm-mcp.{your-subdomain}.workers.dev",
+      "transport": "http",
+      "description": "MyVersionManager - Project & Task management for AI Agents"
+    }
+  },
+  "tools": {
+    "mvm_list_projects": {
+      "description": "List all projects in MVM"
+    },
+    "mvm_get_tasks": {
+      "description": "Get pending tasks for a project",
+      "params": {
+        "projectId": "UUID of the project"
+      }
+    },
+    "mvm_update_progress": {
+      "description": "Update project progress (0-100)",
+      "params": {
+        "projectId": "UUID of the project",
+        "progress": "Number 0-100"
+      }
+    },
+    "mvm_read_context": {
+      "description": "Read latest context dump for continuity between sessions",
+      "params": {
+        "projectId": "UUID of the project"
+      }
+    },
+    "mvm_log_action": {
+      "description": "Log AI action for audit trail",
+      "params": {
+        "command": "Original command",
+        "status": "success | failed"
+      }
+    }
+  },
+  "projectIds": {
+    "_comment": "Add your project IDs here for quick reference",
+    "example": "1601b9ca-f19c-4bd6-97ba-9f41de6c2a0d"
+  }
+}

@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "MCP configuration for MyVersionManager - Native Supabase integration",
+    "mcpServers": {
+        "mvm": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@supabase/mcp-server-supabase"
+            ],
+            "env": {
+                "SUPABASE_URL": "https://YOUR_PROJECT.supabase.co",
+                "SUPABASE_SERVICE_ROLE_KEY": "eyJ_YOUR_SERVICE_ROLE_KEY_HERE"
+            }
+        }
+    },
+    "_setup": {
+        "steps": [
+            "1. Go to Supabase Dashboard → Settings → API",
+            "2. Copy 'Project URL' → replace SUPABASE_URL",
+            "3. Copy 'service_role' key (NOT anon) → replace SUPABASE_SERVICE_ROLE_KEY",
+            "4. Add this to your IDE's MCP settings (Antigravity/Cursor/Claude Desktop)"
+        ]
+    }
+}

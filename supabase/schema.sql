@@ -108,3 +108,31 @@ CREATE POLICY "Allow all for context_dumps" ON context_dumps FOR ALL USING (true
 -- 7. Add diff_summary to activities (for Agent)
 -- =============================================
 ALTER TABLE activities ADD COLUMN IF NOT EXISTS diff_summary TEXT;
+
+-- =============================================
+-- 8. Project Progress
+-- =============================================
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0;
+
+-- =============================================
+-- 10. Local Path for Project File Access
+-- =============================================
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS local_path TEXT;
+
+-- =============================================
+-- 9. AI Logs table
+-- =============================================
+CREATE TABLE IF NOT EXISTS ai_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  command TEXT NOT NULL,
+  interpreted_action TEXT,
+  result JSONB,
+  status TEXT,
+  execution_time_ms INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_logs_created ON ai_logs(created_at DESC);
+
+ALTER TABLE ai_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for ai_logs" ON ai_logs FOR ALL USING (true) WITH CHECK (true);

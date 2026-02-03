@@ -60,7 +60,7 @@
 #### AI Features
 - [ ] Auto-categorize tasks
 - [ ] Suggested next tasks based on history
-- [ ] Natural language task creation
+- [x] Natural language task creation
 
 ---
 

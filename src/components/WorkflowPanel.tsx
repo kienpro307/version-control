@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import {
     X,
     CheckCircle2,
-    Circle,
     Building2,
     Home,
     Brain,
@@ -131,13 +130,13 @@ export default function WorkflowPanel({
             >
                 {/* Header */}
                 <div className={`px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between ${workspaceLocation === 'office'
-                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20'
-                        : 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20'
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20'
+                    : 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20'
                     }`}>
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${workspaceLocation === 'office'
-                                ? 'bg-blue-100 dark:bg-blue-900/30'
-                                : 'bg-amber-100 dark:bg-amber-900/30'
+                            ? 'bg-blue-100 dark:bg-blue-900/30'
+                            : 'bg-amber-100 dark:bg-amber-900/30'
                             }`}>
                             {workspaceLocation === 'office'
                                 ? <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -169,8 +168,8 @@ export default function WorkflowPanel({
                             <div
                                 key={item.id}
                                 className={`flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer ${isCompleted
-                                        ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
-                                        : 'bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
+                                    : 'bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                                     }`}
                                 onClick={() => {
                                     if (item.action) item.action();
@@ -179,8 +178,8 @@ export default function WorkflowPanel({
                             >
                                 {/* Step Number / Check */}
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isCompleted
-                                        ? 'bg-emerald-500 text-white'
-                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                                    ? 'bg-emerald-500 text-white'
+                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                                     }`}>
                                     {isCompleted
                                         ? <CheckCircle2 className="w-5 h-5" />
@@ -216,7 +215,7 @@ export default function WorkflowPanel({
                     {allCompleted ? (
                         <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400">
                             <CheckCircle2 className="w-5 h-5" />
-                            <span className="font-medium">All done! You're ready to go.</span>
+                            <span className="font-medium">All done! You&apos;re ready to go.</span>
                         </div>
                     ) : (
                         <div className="text-center text-sm text-slate-500 dark:text-slate-400">

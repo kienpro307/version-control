@@ -8,9 +8,9 @@ export interface Activity {
     action_type: string;
     entity_type: string;
     entity_id: string;
-    description?: string;
-    diff_summary?: string;
-    metadata: any;
+    description: string | null;
+    diff_summary: string | null;
+    metadata: Record<string, unknown>;
     created_at: string;
 }
 
@@ -34,22 +34,23 @@ export function useActivities(projectId: string | null) {
             .limit(50); // increased limit
 
         if (!error && data) {
-            setActivities(data);
+            setActivities(data as unknown as Activity[]);
         }
         setLoading(false);
     }, [projectId]);
 
-    const logActivity = async (
+    const logActivity = useCallback(async (
         action_type: string,
         entity_type: string,
         entity_id: string,
         description?: string,
-        metadata: any = {},
+        metadata: Record<string, unknown> = {},
         overrideProjectId?: string,
         diff_summary?: string
     ) => {
         const pid = overrideProjectId || projectId;
         if (!pid) return;
+
 
         const { error } = await supabase.from('activities').insert({
             project_id: pid,
@@ -65,9 +66,9 @@ export function useActivities(projectId: string | null) {
             // Optimistically add to list (or refetch)
             fetchActivities();
         }
-    };
+    }, [projectId, fetchActivities]);
 
-    const updateActivity = async (activityId: string, updates: { diff_summary?: string }) => {
+    const updateActivity = useCallback(async (activityId: string, updates: { diff_summary?: string }) => {
         const { error } = await supabase
             .from('activities')
             .update(updates)
@@ -77,7 +78,7 @@ export function useActivities(projectId: string | null) {
             fetchActivities();
         }
         return { error };
-    };
+    }, [fetchActivities]);
 
     useEffect(() => {
         fetchActivities();

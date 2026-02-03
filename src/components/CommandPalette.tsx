@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Sparkles } from 'lucide-react';
 import PromptPreviewModal from './PromptPreviewModal';
 import { generateAgentPrompts } from '@/lib/promptGenerator';
+import type { Project, Version, Task, Activity } from '@/lib/types';
+import type { ContextDump } from '@/hooks/useContextDumps';
 
 interface Command {
     id: string;
@@ -15,11 +17,11 @@ interface CommandPaletteProps {
     onClose: () => void;
     // Extra Data for Agent Commands
     contextData?: {
-        project?: any;
-        versions?: any[];
-        tasks?: any[];
-        activities?: any[];
-        latestDump?: any;
+        project?: Project;
+        versions?: Version[];
+        tasks?: Task[];
+        activities?: Activity[];
+        latestDump?: ContextDump | null;
     };
 }
 
@@ -36,6 +38,7 @@ export default function CommandPalette({ commands, onClose, contextData }: Comma
                 id: 'agent-summarize',
                 label: 'Agent: Summarize Project',
                 action: () => {
+                    if (!contextData.project) return;
                     const prompt = generateAgentPrompts.summarizeProject(
                         contextData.project,
                         contextData.versions || [],
@@ -143,8 +146,8 @@ export default function CommandPalette({ commands, onClose, contextData }: Comma
                                     onClose();
                                 }}
                                 className={`w-full flex items-center justify-between px-4 py-3 text-left transition-all ${index === selectedIndex
-                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                    ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400 border-l-2 border-blue-500 pl-[14px]'
+                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border-l-2 border-transparent'
                                     } ${cmd.id.startsWith('agent-') ? 'hover:bg-purple-50 dark:hover:bg-purple-900/10' : ''}`}
                             >
                                 <span className={`text-sm flex items-center gap-2 ${cmd.id.startsWith('agent-') ? 'font-medium text-purple-700 dark:text-purple-400' : ''}`}>

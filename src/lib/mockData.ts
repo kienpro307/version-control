@@ -1,9 +1,9 @@
 import { Project, Version, Task } from './types';
 
 export const mockProjects: Project[] = [
-  { id: 'p1', name: 'All Translate App', createdAt: '2024-01-15T10:00:00Z' },
-  { id: 'p2', name: 'Portfolio Website', createdAt: '2024-02-01T08:00:00Z' },
-  { id: 'p3', name: 'E-commerce Admin', createdAt: '2024-02-10T14:00:00Z' },
+  { id: 'p1', name: 'All Translate App', createdAt: '2024-01-15T10:00:00Z', progress: 75 },
+  { id: 'p2', name: 'Portfolio Website', createdAt: '2024-02-01T08:00:00Z', progress: 50 },
+  { id: 'p3', name: 'E-commerce Admin', createdAt: '2024-02-10T14:00:00Z', progress: 20 },
 ];
 
 export const mockVersions: Version[] = [

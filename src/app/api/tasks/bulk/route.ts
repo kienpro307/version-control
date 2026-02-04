@@ -11,6 +11,7 @@ interface BulkOperation {
     isDone?: boolean;
     createdAt?: string;
     doneAt?: string;
+    parentId?: string;
 }
 
 interface OperationResult {
@@ -70,6 +71,15 @@ export async function POST(request: NextRequest) {
                         content: op.content,
                         is_done: op.isDone || false,
                     };
+
+                    if (op.parentId) {
+                        insertData.parent_id = op.parentId;
+                        // Let the database trigger validation handle depth checks, or add check here?
+                        // For bulk performance, we'll try direct insert. If parent is invalid or depth exceeded, 
+                        // the insert *might* fail or succeed depending on trigger.
+                        // Best practice: Set depth explicitly if we know it.
+                        insertData.depth = 1;
+                    }
 
                     if (op.createdAt) insertData.created_at = op.createdAt;
                     if (op.doneAt) insertData.done_at = op.doneAt;

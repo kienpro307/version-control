@@ -142,7 +142,15 @@ GET /api/projects/:id/tasks
 GET /api/projects/:id/tasks?status=pending
 GET /api/projects/:id/tasks?status=done
 GET /api/projects/:id/tasks?versionId=uuid
+GET /api/projects/:id/tasks?parentId=uuid  // list subtasks for a task
 ```
+
+**Task Object Fields:**
+- `id`: uuid
+- `content`: string
+- `isDone`: boolean
+- `parentId`: uuid | null
+- `depth`: number (0 = root, 1 = subtask)
 
 #### Create Task
 ```
@@ -151,9 +159,12 @@ Content-Type: application/json
 
 {
   "content": "Implement login feature",
-  "versionId": "optional-version-uuid"  // auto-links to active version if omitted
+  "versionId": "optional-version-uuid",  // auto-links to active version if omitted
+  "parentId": "optional-parent-uuid"     // create as subtask (max depth 1)
 }
 ```
+
+> **Note**: Subtasks (depth 1) are automatically linked to their parent's version if `versionId` is not provided. Nesting is limited to 1 level.
 
 #### Update Task
 ```

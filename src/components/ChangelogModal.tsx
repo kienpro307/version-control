@@ -370,7 +370,7 @@ export default function ChangelogModal({ version, tasks, onClose, onRelease, onS
                             </>
                         )}
                         {source === 'manual' && (
-                            <span className="text-xs text-slate-500 italic">Use "AI Draft" to generate from manual input</span>
+                            <span className="text-xs text-slate-500 italic">Use &quot;AI Draft&quot; to generate from manual input</span>
                         )}
                     </div>
                 </div>

@@ -31,7 +31,7 @@ export function useSettings() {
         fetchSettings();
     }, [fetchSettings]);
 
-    const updateLastProject = useCallback(async (projectId: string): Promise<boolean> => { // eslint-disable-line react-hooks/exhaustive-deps
+    const updateLastProject = useCallback(async (projectId: string): Promise<boolean> => {  
         // Check if settings row exists
         const { data: existing } = await supabase
             .from('settings')

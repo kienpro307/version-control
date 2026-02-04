@@ -1,4 +1,4 @@
-import { Book, Code, Key, Server, Zap, Workflow, Search, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Book, Key, Server, Zap, Workflow, AlertTriangle, MessageSquare } from 'lucide-react';
 
 export default function DocsPage() {
     return (
@@ -56,7 +56,7 @@ export default function DocsPage() {
                         </h2>
                         <div className="prose prose-slate max-w-none text-slate-600">
                             <p className="text-lg">
-                                Hello Agent. This API is your control plane for the "My Version Manager" system.
+                                Hello Agent. This API is your control plane for the &quot;My Version Manager&quot; system.
                                 Your goal is to maintain a perfect synchronization between the codebase state and this tracking system.
                             </p>
                             <div className="bg-amber-50 border-l-4 border-amber-500 p-4 my-6">
@@ -80,7 +80,6 @@ export default function DocsPage() {
                                 Include the <code className="text-blue-600 font-mono">Authorization</code> header in every request.
                             </p>
                             <CodeBlock
-                                language="bash"
                                 code={`Authorization: Bearer <API_SECRET_KEY>`}
                             />
                             <div className="mt-4 text-sm text-slate-500">
@@ -143,7 +142,7 @@ export default function DocsPage() {
                                 <h3 className="text-xl font-bold text-slate-800">1. Project Groups</h3>
                                 <span className="px-2 py-1 bg-slate-100 text-slate-500 text-xs rounded-full font-mono">Hierarchical</span>
                             </div>
-                            <p className="text-slate-600 mb-4">Use groups to organize projects (e.g., "Client Work", "Open Source"). Supports infinite nesting.</p>
+                            <p className="text-slate-600 mb-4">Use groups to organize projects (e.g., &quot;Client Work&quot;, &quot;Open Source&quot;). Supports infinite nesting.</p>
                             <div className="space-y-4">
                                 <Endpoint
                                     method="GET"
@@ -183,7 +182,7 @@ export default function DocsPage() {
                             <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg mb-4 text-sm text-blue-800 flex gap-2">
                                 <AlertTriangle className="w-4 h-4 mt-0.5" />
                                 <div>
-                                    <strong>Critical Logic:</strong> Only one version is "active" at a time. Creating a new version automatically deactivates the old one. Use <code>migratePendingTasks: true</code> to carry over unfinished work.
+                                    <strong>Critical Logic:</strong> Only one version is &quot;active&quot; at a time. Creating a new version automatically deactivates the old one. Use <code>migratePendingTasks: true</code> to carry over unfinished work.
                                 </div>
                             </div>
                             <div className="space-y-4">
@@ -236,7 +235,7 @@ export default function DocsPage() {
                             System Prompt Template
                         </h2>
                         <p className="text-slate-400 mb-6">
-                            Paste this into your other AI Agent's system instructions to give it full awareness of this tool.
+                            Paste this into your other AI Agent&apos;s system instructions to give it full awareness of this tool.
                         </p>
 
                         <div className="bg-black/50 rounded-xl p-4 font-mono text-xs text-emerald-300 overflow-x-auto border border-white/10">
@@ -297,7 +296,7 @@ function WorkflowCard({ title, description, steps }: { title: string; descriptio
     );
 }
 
-function CodeBlock({ code, language = 'text' }: { code: string; language?: string }) {
+function CodeBlock({ code }: { code: string }) {
     return (
         <div className="relative group">
             <pre className="bg-slate-900 text-slate-200 rounded-lg p-4 text-sm overflow-x-auto font-mono border border-slate-800">

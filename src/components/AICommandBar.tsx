@@ -19,9 +19,9 @@ export default function AICommandBar({ isOpen, onClose, onExecute }: AICommandBa
             // Reset state on open
             // eslint-disable-next-line
             setStatus('idle');
-            // eslint-disable-next-line
+             
             setInput('');
-            // eslint-disable-next-line
+             
             setErrorMessage('');
         }
     }, [isOpen]);

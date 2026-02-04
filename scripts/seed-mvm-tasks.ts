@@ -12,7 +12,7 @@ async function main() {
     console.log('🚀 Seeding MyVersionManager project data...\n');
 
     // 1. Find or create "Web/MyVersionManager" project
-    let { data: projects } = await supabase
+    const { data: projects } = await supabase
         .from('projects')
         .select('*')
         .ilike('name', '%MyVersionManager%');
@@ -40,7 +40,7 @@ async function main() {
 
     // 2. Create version "v0.8 - AI Integration"
     const versionName = 'v0.8 - AI Integration';
-    let { data: versions } = await supabase
+    const { data: versions } = await supabase
         .from('versions')
         .select('*')
         .eq('project_id', projectId)

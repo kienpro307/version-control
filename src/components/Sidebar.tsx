@@ -245,7 +245,7 @@ export default function Sidebar({
             for (const p of projectsInFolder) {
                 await onDeleteProject(p.id);
             }
-            // eslint-disable-next-line
+             
             setPendingFolders(prev => prev.filter(f => f !== folderPath && !f.startsWith(folderPath + '/')));
         }
     };

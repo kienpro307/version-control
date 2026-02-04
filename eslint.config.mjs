@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Auxiliary scripts using CommonJS
+    "scripts/**/*.js",
+    "packages/**",
+    "mcp-server/**",
   ]),
 ]);
 

@@ -119,7 +119,7 @@ export default function Home() {
       activationConstraint: { delay: 100, tolerance: 5 }, // Slight delay to prevent accidents
     }),
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates, // eslint-disable-line @typescript-eslint/no-explicit-any
+      coordinateGetter: sortableKeyboardCoordinates,  
     })
   );
 
@@ -132,7 +132,7 @@ export default function Home() {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedProjectId(settings.lastProjectId);
       } else {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         setSelectedProjectId(projects[0].id);
       }
     }
@@ -640,6 +640,34 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Unassigned Section (Moved to Top) */}
+              {tasksByVersion.unassigned.length > 0 && (
+                (!searchQuery || tasksByVersion.unassigned.some(t => t.content.toLowerCase().includes(searchQuery.toLowerCase()))) && (() => {
+                  const paginationState = getVersionPaginationState(null);
+                  return (
+                    <div>
+                      <VersionSection
+                        version={{ id: 'unassigned', projectId: selectedProjectId, name: 'Unassigned', isActive: false, createdAt: '' }}
+                        tasks={tasksByVersion.unassigned.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase()))}
+                        onAddTask={(content: string) => handleAddTask(content, null)}
+                        onCreateSubtask={apiCreateSubtask}
+                        onToggleDone={apiToggleDone}
+                        onUpdateTask={apiUpdateTask}
+                        onDeleteTask={apiDeleteTask}
+                        onOpenTask={task => setSelectedTask(task)}
+                        isUnassigned
+                        isSelectionMode={isSelectionMode}
+                        selectedTaskIds={selectedTaskIds}
+                        onToggleSelectTask={toggleTaskSelection}
+                        onLoadMore={() => loadMoreTasks(null)}
+                        hasMore={paginationState.hasMore}
+                        isLoadingMore={paginationState.loading}
+                      />
+                    </div>
+                  );
+                })()
+              )}
+
               {displayVersions.map(version => {
                 const paginationState = getVersionPaginationState(version.id);
                 return (
@@ -669,32 +697,7 @@ export default function Home() {
               })}
 
               {/* Unassigned Section */}
-              {tasksByVersion.unassigned.length > 0 && (
-                (!searchQuery || tasksByVersion.unassigned.some(t => t.content.toLowerCase().includes(searchQuery.toLowerCase()))) && (() => {
-                  const paginationState = getVersionPaginationState(null);
-                  return (
-                    <div>
-                      <VersionSection
-                        version={{ id: 'unassigned', projectId: selectedProjectId, name: 'Unassigned', isActive: false, createdAt: '' }}
-                        tasks={tasksByVersion.unassigned.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase()))}
-                        onAddTask={(content: string) => handleAddTask(content, null)}
-                        onCreateSubtask={apiCreateSubtask}
-                        onToggleDone={apiToggleDone}
-                        onUpdateTask={apiUpdateTask}
-                        onDeleteTask={apiDeleteTask}
-                        onOpenTask={task => setSelectedTask(task)}
-                        isUnassigned
-                        isSelectionMode={isSelectionMode}
-                        selectedTaskIds={selectedTaskIds}
-                        onToggleSelectTask={toggleTaskSelection}
-                        onLoadMore={() => loadMoreTasks(null)}
-                        hasMore={paginationState.hasMore}
-                        isLoadingMore={paginationState.loading}
-                      />
-                    </div>
-                  );
-                })()
-              )}
+
             </DndContext>
 
             {/* Load More Button */}

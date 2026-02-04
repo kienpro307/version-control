@@ -12,7 +12,7 @@ interface TopBarProps {
 
 export default function TopBar({ onSearch, searchQuery, onContextDump, onOpenWorkflow, currentWorkspace }: TopBarProps) {
     return (
-        <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6 shadow-sm/50">
+        <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 flex items-center justify-between px-6 shadow-sm/50 transition-all">
             {/* Search Bar */}
             <div className="flex-1 max-w-xl mx-auto lg:mx-0 relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
@@ -21,13 +21,11 @@ export default function TopBar({ onSearch, searchQuery, onContextDump, onOpenWor
                     value={searchQuery}
                     onChange={(e) => onSearch(e.target.value)}
                     placeholder="Search or go to..."
-                    className="w-full pl-9 pr-10 py-1.5 bg-slate-100 dark:bg-slate-800 border border-transparent rounded-lg text-sm text-slate-700 dark:text-slate-200
+                    className="w-full pl-9 pr-12 py-1.5 bg-slate-100 dark:bg-slate-800 border border-transparent rounded-lg text-sm text-slate-700 dark:text-slate-200
             focus:bg-white dark:focus:bg-slate-950 focus:border-emerald-500/30 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-slate-400"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 pointer-events-none">
-                    <kbd className="h-5 flex items-center gap-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 font-mono text-[10px] font-medium text-slate-400">
-                        /
-                    </kbd>
+                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">/</span >
                 </div>
             </div>
 
@@ -39,8 +37,8 @@ export default function TopBar({ onSearch, searchQuery, onContextDump, onOpenWor
                         <button
                             onClick={() => onOpenWorkflow('office')}
                             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${currentWorkspace === 'office'
-                                    ? 'bg-blue-500 text-white shadow-sm'
-                                    : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                                ? 'bg-blue-500 text-white shadow-sm'
+                                : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
                                 }`}
                             title="Office Workflow"
                         >
@@ -50,8 +48,8 @@ export default function TopBar({ onSearch, searchQuery, onContextDump, onOpenWor
                         <button
                             onClick={() => onOpenWorkflow('home')}
                             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${currentWorkspace === 'home'
-                                    ? 'bg-amber-500 text-white shadow-sm'
-                                    : 'text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                                ? 'bg-amber-500 text-white shadow-sm'
+                                : 'text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
                                 }`}
                             title="Home Workflow"
                         >

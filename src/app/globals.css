@@ -31,6 +31,32 @@
   --color-sidebar: var(--sidebar-bg);
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: monospace;
+  
+  /* Typography Scale */
+  --text-hero: 2.25rem; /* 36px */
+  --text-hero-line: 2.5rem;
+  
+  /* Custom Spacing */
+  --spacing-1: 0.25rem; /* 4px */
+  --spacing-2: 0.5rem; /* 8px */
+  --spacing-3: 0.75rem; /* 12px */
+  --spacing-4: 1rem; /* 16px */
+}
+
+:root {
+  --background: #f8fafc; /* Slate 50 */
+  --foreground: #0f172a; /* Slate 900 */
+  --cta: #22c55e; /* Green 500 */
+  --sidebar-bg: #f1f5f9; /* Slate 100 */
+  --border-subtle: #e2e8f0; /* Slate 200 */
+}
+
+.dark {
+  --background: #0f172a; /* Slate 900 */
+  --foreground: #f8fafc; /* Slate 50 */
+  --cta: #22c55e; /* Green 500 */
+  --sidebar-bg: #020617; /* Slate 950 */
+  --border-subtle: #1e293b; /* Slate 800 */
 }
 
 /* Custom Animations */

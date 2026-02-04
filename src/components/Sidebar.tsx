@@ -245,7 +245,7 @@ export default function Sidebar({
             for (const p of projectsInFolder) {
                 await onDeleteProject(p.id);
             }
-             
+
             setPendingFolders(prev => prev.filter(f => f !== folderPath && !f.startsWith(folderPath + '/')));
         }
     };
@@ -719,21 +719,26 @@ function TreeNodeItem({
                 onClick={() => onSelectProject(node.projectId!)}
                 onContextMenu={(e) => onContextMenu(e, 'project', node.fullPath, node.projectId)}
                 className={`
-                    w-full flex flex-col gap-0.5 px-2 py-1.5 rounded-lg text-sm transition-all group relative text-left
-                    ${isSelected ? 'bg-white dark:bg-slate-800 text-green-700 dark:text-green-400 font-semibold shadow-sm ring-1 ring-slate-200 dark:ring-slate-700' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'}
+                    w-full flex flex-col gap-0.5 px-3 py-2 text-sm transition-all group relative text-left border-l-4
+                    ${isSelected
+                        ? 'bg-slate-100 dark:bg-slate-800 border-green-500 text-slate-900 dark:text-slate-100 font-medium'
+                        : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50'}
                 `}
-                style={{ paddingLeft: `${level * 12 + 28}px` }}
+                style={{ paddingLeft: `${selectedProjectId === node.projectId ? level * 12 + 24 : level * 12 + 28}px` }}
             >
                 <div className="flex items-center gap-2 w-full">
-                    <FileText size={14} className={`shrink-0 ${isSelected ? 'text-green-500' : 'opacity-70 group-hover:opacity-100 text-slate-400 dark:text-slate-500'}`} />
-                    <span className="truncate flex-1">{node.name}</span>
+                    {/* Icon - Optional, maybe remove for cleaner look or keep subtle */}
+                    {/* <FileText size={14} className={`shrink-0 ${isSelected ? 'text-green-500' : 'opacity-70 group-hover:opacity-100 text-slate-400 dark:text-slate-500'}`} /> */}
+
+                    <span className="truncate flex-1" title={node.name}>{node.name}</span>
+
                     {node.taskCount !== undefined && node.taskCount > 0 && (
-                        <span className="text-[10px] font-bold font-mono text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-700 px-1.5 rounded-full ml-2">
+                        <span className={`text-[10px] font-mono px-1.5 rounded-full ml-2 transition-colors ${isSelected ? 'text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-700' : 'text-slate-400 dark:text-slate-500 bg-transparent group-hover:bg-slate-100 dark:group-hover:bg-slate-800'}`}>
                             {node.taskCount}
                         </span>
                     )}
-                    {isSelected && <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-green-500" />}
-                    <span onClick={(e) => onContextMenu(e, 'project', node.fullPath, node.projectId)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-500 dark:text-slate-400 transition-all ml-auto"><MoreHorizontal size={14} /></span>
+
+                    <span onClick={(e) => onContextMenu(e, 'project', node.fullPath, node.projectId)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 transition-all ml-auto"><MoreHorizontal size={14} /></span>
                 </div>
             </button>
         </div>

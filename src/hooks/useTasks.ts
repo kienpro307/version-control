@@ -141,24 +141,30 @@ export function useTasks(projectId: string | null) {
         return true;
     };
 
-    const toggleDone = async (id: string, forcedValue?: boolean): Promise<boolean> => {
+    const toggleDone = async (id: string, forcedValue?: boolean, activeVersionId?: string | null): Promise<boolean> => {
         const task = tasks.find((t) => t.id === id);
         if (!task) return false;
 
         const newIsDone = forcedValue !== undefined ? forcedValue : !task.isDone;
         if (newIsDone === task.isDone) return true;
 
+        // Auto-assign pending task to active version when marking done
+        let targetVersionId = task.versionId;
+        if (newIsDone && !task.versionId && activeVersionId) {
+            targetVersionId = activeVersionId;
+        }
+
         const doneAt = newIsDone ? new Date().toISOString() : null;
 
         // Optimistic update
         const updatedTasks = tasks.map((t) =>
-            t.id === id ? { ...t, isDone: newIsDone, doneAt } : t
+            t.id === id ? { ...t, isDone: newIsDone, doneAt, versionId: targetVersionId } : t
         );
         mutate(updatedTasks, { revalidate: false });
 
         const { error } = await supabase
             .from('tasks')
-            .update({ is_done: newIsDone, done_at: doneAt })
+            .update({ is_done: newIsDone, done_at: doneAt, version_id: targetVersionId })
             .eq('id', id);
 
         if (error) {

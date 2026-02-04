@@ -23,6 +23,7 @@ import {
   useAILogs
 } from '@/hooks';
 import { parseAICommand } from '@/lib/commandParser';
+import { sortVersionsDescending } from '@/lib/versionSort';
 import { executeCommand } from '@/lib/commandExecutor';
 import { supabase } from '@/lib/supabase';
 import type { Task, Version } from '@/lib/types';
@@ -72,6 +73,7 @@ export default function Home() {
     updateVersion: apiUpdateVersion,
     deleteVersion: apiDeleteVersion,
     setActiveVersion: apiSetActiveVersion,
+    getActiveVersion: apiGetActiveVersion,
     loading: versionsLoading,
     hasMore: hasMoreVersions,
     loadMore: loadMoreVersions,
@@ -186,10 +188,9 @@ export default function Home() {
 
   // --- Derived Data ---
 
-  // Filtered Versions (already sorted by hook, but double check sort if needed)
+  // Filtered Versions - sorted by semantic version (largest first)
   const filteredVersions = useMemo(() => {
-    // Hooks return data for selectedProjectId, so just sort
-    return [...versions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return sortVersionsDescending(versions);
   }, [versions]);
 
   const tasksByVersion = useMemo(() => {
@@ -512,7 +513,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowVersionModal(true)}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 active:scale-95 transition-all shadow-sm hover:shadow"
+                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 active:scale-95 transition-all shadow-md shadow-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/40"
                 >
                   <Plus className="w-4 h-4" />
                   <span>New Version</span>
@@ -528,7 +529,7 @@ export default function Home() {
 
                 <button
                   onClick={() => setShowContextDumpModal(true)}
-                  className="p-2 text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                  className="p-2 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg transition-colors"
                   title="Context Dump"
                 >
                   <Brain className="w-5 h-5" />
@@ -569,20 +570,36 @@ export default function Home() {
         <div className="max-w-[1920px] mx-auto px-6 py-8">
           {/* Stats Ribbon */}
           {!searchQuery && (
-            <div className="flex items-center gap-8 mb-8 px-1">
-              <div className="flex items-baseline gap-2.5 group cursor-default">
-                <span className="text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight group-hover:text-amber-600 transition-colors">{stats.pending}</span>
-                <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-amber-600/80 transition-colors">pending</span>
+            <div className="flex items-center gap-12 mb-10 px-1 border-b border-border-subtle/50 pb-8">
+              <div className="flex flex-col gap-1 group cursor-default">
+                <span className="text-4xl font-bold text-slate-800 dark:text-white tracking-tight leading-none group-hover:text-amber-500 transition-colors">
+                  {stats.pending}
+                </span>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider group-hover:text-amber-500/80 transition-colors">
+                  pending
+                </span>
               </div>
-              <div className="h-8 w-px bg-slate-200/60 dark:bg-slate-700/60" />
-              <div className="flex items-baseline gap-2.5 group cursor-default">
-                <span className="text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight group-hover:text-green-600 transition-colors">{stats.done}</span>
-                <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-green-600/80 transition-colors">completed</span>
+
+              <div className="h-10 w-px bg-slate-200/60 dark:bg-slate-700/60" />
+
+              <div className="flex flex-col gap-1 group cursor-default">
+                <span className="text-4xl font-bold text-slate-800 dark:text-white tracking-tight leading-none group-hover:text-green-500 transition-colors">
+                  {stats.done}
+                </span>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider group-hover:text-green-500/80 transition-colors">
+                  completed
+                </span>
               </div>
-              <div className="h-8 w-px bg-slate-200/60 dark:bg-slate-700/60" />
-              <div className="flex items-baseline gap-2.5 group cursor-default">
-                <span className="text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight group-hover:text-blue-600 transition-colors">{stats.released}</span>
-                <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide group-hover:text-blue-600/80 transition-colors">released</span>
+
+              <div className="h-10 w-px bg-slate-200/60 dark:bg-slate-700/60" />
+
+              <div className="flex flex-col gap-1 group cursor-default">
+                <span className="text-4xl font-bold text-slate-800 dark:text-white tracking-tight leading-none group-hover:text-blue-500 transition-colors">
+                  {stats.released}
+                </span>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider group-hover:text-blue-500/80 transition-colors">
+                  released
+                </span>
               </div>
             </div>
           )}
@@ -655,7 +672,7 @@ export default function Home() {
                       tasks={tasksByVersion.unassigned.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase()))}
                       onAddTask={(content: string) => handleAddTask(content, null)}
                       onCreateSubtask={apiCreateSubtask}
-                      onToggleDone={apiToggleDone}
+                      onToggleDone={(taskId, isDone) => apiToggleDone(taskId, isDone, apiGetActiveVersion()?.id)}
                       onUpdateTask={apiUpdateTask}
                       onDeleteTask={apiDeleteTask}
                       onOpenTask={task => setSelectedTask(task)}
@@ -675,7 +692,7 @@ export default function Home() {
                     tasks={tasksByVersion[version.id]?.filter(t => !searchQuery || t.content.toLowerCase().includes(searchQuery.toLowerCase())) || []}
                     onAddTask={(content: string) => handleAddTask(content, version.id)}
                     onCreateSubtask={apiCreateSubtask}
-                    onToggleDone={apiToggleDone}
+                    onToggleDone={(taskId, isDone) => apiToggleDone(taskId, isDone, apiGetActiveVersion()?.id)}
                     onUpdateTask={apiUpdateTask}
                     onDeleteTask={apiDeleteTask}
                     onOpenTask={task => setSelectedTask(task)}

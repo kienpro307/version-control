@@ -119,7 +119,7 @@ export default function Home() {
       activationConstraint: { delay: 100, tolerance: 5 }, // Slight delay to prevent accidents
     }),
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,  
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -132,7 +132,7 @@ export default function Home() {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedProjectId(settings.lastProjectId);
       } else {
-         
+
         setSelectedProjectId(projects[0].id);
       }
     }
@@ -198,7 +198,15 @@ export default function Home() {
     const grouped: Record<string, Task[]> = { unassigned: [] };
     filteredVersions.forEach(v => { grouped[v.id] = []; });
 
-    tasks.forEach(task => {
+    // Deduplicate tasks by ID (keep first occurrence - newest from optimistic update)
+    const seenIds = new Set<string>();
+    const uniqueTasks = tasks.filter(task => {
+      if (seenIds.has(task.id)) return false;
+      seenIds.add(task.id);
+      return true;
+    });
+
+    uniqueTasks.forEach(task => {
       if (task.versionId && grouped[task.versionId]) {
         grouped[task.versionId].push(task);
       } else {

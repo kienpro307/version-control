@@ -1,16 +1,10 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import useSWR from 'swr';
 import { supabase } from '@/lib/supabase';
 import type { Task } from '@/lib/types';
 import { useActivities } from './useActivities';
-
-interface VersionPagination {
-    offset: number;
-    hasMore: boolean;
-    loading: boolean;
-}
 
 async function fetchTasks(projectId: string): Promise<Task[]> {
     const { data, error } = await supabase
@@ -18,46 +12,6 @@ async function fetchTasks(projectId: string): Promise<Task[]> {
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: true });
-
-    if (error) throw error;
-
-    return (data || []).map((t) => ({
-        id: t.id,
-        projectId: t.project_id,
-        versionId: t.version_id,
-        content: t.content,
-        isDone: t.is_done,
-        createdAt: t.created_at,
-        doneAt: t.done_at,
-        position: t.position || 0,
-        description: t.description || '',
-        labels: t.labels || [],
-        priority: t.priority || 'none',
-        parentId: t.parent_id,
-        depth: t.depth || 0,
-    }));
-}
-
-async function fetchTasksByVersion(
-    projectId: string,
-    versionId: string | null,
-    offset: number,
-    limit: number = 20
-): Promise<Task[]> {
-    let query = supabase
-        .from('tasks')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: true })
-        .range(offset, offset + limit - 1);
-
-    if (versionId === null) {
-        query = query.is('version_id', null);
-    } else {
-        query = query.eq('version_id', versionId);
-    }
-
-    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -93,9 +47,6 @@ export function useTasks(projectId: string | null) {
             dedupingInterval: 60000,
         }
     );
-
-    // Pagination state per version
-    const [versionPagination, setVersionPagination] = useState<Map<string, VersionPagination>>(new Map());
 
     const createTask = async (
         content: string,
@@ -381,69 +332,6 @@ export function useTasks(projectId: string | null) {
         }
     }, [tasks, mutate]);
 
-    const loadMoreTasks = useCallback(async (versionId: string | null): Promise<boolean> => {
-        if (!projectId) return false;
-
-        const versionKey = versionId || 'unassigned';
-        const currentPagination = versionPagination.get(versionKey) || { offset: 0, hasMore: true, loading: false };
-
-        if (currentPagination.loading || !currentPagination.hasMore) {
-            return false;
-        }
-
-        // Set loading state
-        setVersionPagination(prev => {
-            const next = new Map(prev);
-            next.set(versionKey, { ...currentPagination, loading: true });
-            return next;
-        });
-
-        try {
-            const newTasks = await fetchTasksByVersion(projectId, versionId, currentPagination.offset, 20);
-
-            if (newTasks.length < 20) {
-                // No more tasks available
-                setVersionPagination(prev => {
-                    const next = new Map(prev);
-                    next.set(versionKey, {
-                        offset: currentPagination.offset + newTasks.length,
-                        hasMore: false,
-                        loading: false
-                    });
-                    return next;
-                });
-            } else {
-                // More tasks might be available
-                setVersionPagination(prev => {
-                    const next = new Map(prev);
-                    next.set(versionKey, {
-                        offset: currentPagination.offset + newTasks.length,
-                        hasMore: true,
-                        loading: false
-                    });
-                    return next;
-                });
-            }
-
-            // Merge new tasks with existing ones
-            mutate([...tasks, ...newTasks], { revalidate: false });
-            return true;
-        } catch (error) {
-            console.error('Error loading more tasks:', error);
-            setVersionPagination(prev => {
-                const next = new Map(prev);
-                next.set(versionKey, { ...currentPagination, loading: false });
-                return next;
-            });
-            return false;
-        }
-    }, [projectId, tasks, mutate, versionPagination]);
-
-    const getVersionPaginationState = useCallback((versionId: string | null) => {
-        const versionKey = versionId || 'unassigned';
-        return versionPagination.get(versionKey) || { offset: 0, hasMore: true, loading: false };
-    }, [versionPagination]);
-
     return {
         tasks,
         setTasks,
@@ -459,8 +347,6 @@ export function useTasks(projectId: string | null) {
         getPendingTasks,
         getCompletedTasks,
         getTasksByVersion,
-        loadMoreTasks,
-        getVersionPaginationState,
         refetch: mutate,
     };
 }

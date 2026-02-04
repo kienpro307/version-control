@@ -25,9 +25,6 @@ interface VersionSectionProps {
     isSelectionMode?: boolean;
     selectedTaskIds?: Set<string>;
     onToggleSelectTask?: (taskId: string) => void;
-    onLoadMore?: () => Promise<boolean>;
-    hasMore?: boolean;
-    isLoadingMore?: boolean;
 }
 
 export default function VersionSection({
@@ -47,9 +44,6 @@ export default function VersionSection({
     isSelectionMode = false,
     selectedTaskIds = new Set(),
     onToggleSelectTask = () => { },
-    onLoadMore,
-    hasMore = false,
-    isLoadingMore = false,
 }: VersionSectionProps) {
     const [newTaskContent, setNewTaskContent] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -57,7 +51,6 @@ export default function VersionSection({
     const [editName, setEditName] = useState(version.name);
     const menuRef = useRef<HTMLDivElement>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
-    const loadMoreRef = useRef<HTMLDivElement>(null);
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -81,29 +74,6 @@ export default function VersionSection({
             nameInputRef.current.select();
         }
     }, [isEditingName]);
-
-    // Intersection Observer for lazy loading
-    const handleLoadMore = useCallback(async () => {
-        if (onLoadMore && hasMore && !isLoadingMore) {
-            await onLoadMore();
-        }
-    }, [onLoadMore, hasMore, isLoadingMore]);
-
-    useEffect(() => {
-        if (!loadMoreRef.current || !hasMore || !onLoadMore) return;
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting) {
-                    handleLoadMore();
-                }
-            },
-            { threshold: 1.0 }
-        );
-
-        observer.observe(loadMoreRef.current);
-        return () => observer.disconnect();
-    }, [hasMore, onLoadMore, handleLoadMore]);
 
     const handleAddTask = () => {
         if (newTaskContent.trim()) {
@@ -299,25 +269,6 @@ export default function VersionSection({
                 ) : (
                     <div className="px-4 py-6 text-center text-slate-400 dark:text-slate-500 text-sm">
                         No tasks in this version
-                    </div>
-                )}
-
-                {/* Load More Trigger & Indicator */}
-                {hasMore && onLoadMore && (
-                    <div ref={loadMoreRef} className="px-4 py-3 flex items-center justify-center border-t border-slate-100 dark:border-slate-800">
-                        {isLoadingMore ? (
-                            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                                <div className="w-4 h-4 border-2 border-slate-300 dark:border-slate-600 border-t-transparent rounded-full animate-spin" />
-                                Loading more tasks...
-                            </div>
-                        ) : (
-                            <button
-                                onClick={handleLoadMore}
-                                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                            >
-                                Load more tasks
-                            </button>
-                        )}
                     </div>
                 )}
 

@@ -467,7 +467,7 @@ export default function Home() {
             onClose={() => setShowAICommandBar(false)}
             onExecute={handleAIExecute}
           />
-          <div className="max-w-5xl mx-auto px-4 py-3 h-16 flex items-center justify-between">
+          <div className="w-full px-6 py-3 h-16 flex items-center justify-between">
             {/* Left: Breadcrumb / Project Name */}
             <div className="flex items-center gap-3">
               <button className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg">
@@ -560,7 +560,7 @@ export default function Home() {
           />
         )}
 
-        <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="w-full px-6 py-8">
           {/* Stats Ribbon */}
           {!searchQuery && (
             <div className="flex items-center gap-8 mb-8 px-1">

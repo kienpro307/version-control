@@ -13,6 +13,7 @@ import ContextDumpModal from '@/components/ContextDumpModal';
 import ContextBanner from '@/components/ContextBanner';
 import WorkflowPanel from '@/components/WorkflowPanel';
 import AICommandBar from '@/components/AICommandBar';
+import BulkAssignModal from '@/components/BulkAssignModal';
 import {
   useProjects,
   useVersions,
@@ -89,6 +90,8 @@ export default function Home() {
     reorderTask: apiReorderTask,
     moveTask: apiMoveTask,
     updateTaskDetails: apiUpdateTaskDetails,
+    getDoneUnassignedTasks,
+    bulkAssignTasksToVersion,
   } = useTasks(selectedProjectId || null);
   const { activities, loading: activitiesLoading, updateActivity } = useActivities(selectedProjectId || null);
   const { logs: aiLogs, loading: aiLogsLoading, logAICommand } = useAILogs();
@@ -112,6 +115,8 @@ export default function Home() {
   // Bulk Actions State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkAssignPreselectedVersionId, setBulkAssignPreselectedVersionId] = useState<string | null>(null);
 
   // --- Dnd Sensors ---
   const sensors = useSensors(
@@ -384,7 +389,16 @@ export default function Home() {
     clearSelection();
   };
 
+  const handleOpenBulkAssign = (preSelectedVersionId?: string) => {
+    setBulkAssignPreselectedVersionId(preSelectedVersionId || null);
+    setShowBulkAssignModal(true);
+  };
 
+  const handleBulkAssign = async (taskIds: string[], versionId: string) => {
+    await bulkAssignTasksToVersion(taskIds, versionId);
+    setShowBulkAssignModal(false);
+    clearSelection();
+  };
 
   const handleReleaseVersion = async () => {
     if (changelogVersion && apiUpdateVersion) {
@@ -703,6 +717,7 @@ export default function Home() {
                     isSelectionMode={isSelectionMode}
                     selectedTaskIds={selectedTaskIds}
                     onToggleSelectTask={toggleTaskSelection}
+                    onCollectDoneTasks={(versionId) => handleOpenBulkAssign(versionId)}
                   />
                 </div>
               ))}
@@ -879,6 +894,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button onClick={() => handleBulkToggleDone(true)} className="px-3 py-1.5 hover:bg-slate-800 rounded-lg text-sm transition-colors">Mark Done</button>
             <button onClick={() => handleBulkToggleDone(false)} className="px-3 py-1.5 hover:bg-slate-800 rounded-lg text-sm transition-colors">Mark Pending</button>
+            <button onClick={() => handleOpenBulkAssign()} className="px-3 py-1.5 hover:bg-emerald-900/50 text-emerald-200 hover:text-emerald-100 rounded-lg text-sm transition-colors">Assign to Version</button>
             <button onClick={handleBulkDelete} className="px-3 py-1.5 hover:bg-red-900/50 text-red-200 hover:text-red-100 rounded-lg text-sm transition-colors">Delete</button>
           </div>
 
@@ -889,6 +905,18 @@ export default function Home() {
           </button>
         </div>
       )}
+
+      {/* Bulk Assign Modal */}
+      <BulkAssignModal
+        isOpen={showBulkAssignModal}
+        onClose={() => setShowBulkAssignModal(false)}
+        tasks={tasksByVersion.unassigned.filter(t => t.isDone)}
+        versions={versions}
+        onAssign={handleBulkAssign}
+        onCreateVersion={apiCreateVersion}
+        preSelectedTaskIds={selectedTaskIds}
+        preSelectedVersionId={bulkAssignPreselectedVersionId}
+      />
     </div>
   );
 }

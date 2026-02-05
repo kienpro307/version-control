@@ -319,6 +319,38 @@ export function useTasks(projectId: string | null) {
         return tasks.filter((t) => t.versionId === versionId);
     }, [tasks]);
 
+    const getDoneUnassignedTasks = useCallback((): Task[] => {
+        return tasks.filter((t) => t.isDone && !t.versionId);
+    }, [tasks]);
+
+    const bulkAssignTasksToVersion = async (
+        taskIds: string[],
+        versionId: string
+    ): Promise<boolean> => {
+        if (!projectId || taskIds.length === 0) return false;
+
+        // Optimistic update
+        const updatedTasks = tasks.map(t =>
+            taskIds.includes(t.id) ? { ...t, versionId } : t
+        );
+        mutate(updatedTasks, { revalidate: false });
+
+        const { error } = await supabase
+            .from('tasks')
+            .update({ version_id: versionId })
+            .in('id', taskIds);
+
+        if (error) {
+            console.error('Error bulk assigning tasks:', error.message);
+            mutate(); // Revert
+            return false;
+        }
+
+        logActivity('bulk_assign_tasks', 'task', taskIds[0],
+            `Assigned ${taskIds.length} tasks to version`);
+        return true;
+    };
+
     const moveTask = useCallback((taskId: string, newPosition: number, newVersionId?: string | null) => {
         const updatedTasks = tasks.map(t => {
             if (t.id === taskId) {
@@ -353,6 +385,8 @@ export function useTasks(projectId: string | null) {
         getPendingTasks,
         getCompletedTasks,
         getTasksByVersion,
+        getDoneUnassignedTasks,
+        bulkAssignTasksToVersion,
         refetch: mutate,
     };
 }

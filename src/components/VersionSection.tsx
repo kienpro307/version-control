@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Plus, Circle, CheckCircle2, Trash2, Pencil, Maximize2, FileText, MoreVertical, Rocket } from 'lucide-react';
+import { Plus, Circle, CheckCircle2, Trash2, Pencil, Maximize2, FileText, MoreVertical, Rocket, ClipboardList } from 'lucide-react';
 import { Version, Task } from '@/lib/types';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -25,6 +25,7 @@ interface VersionSectionProps {
     isSelectionMode?: boolean;
     selectedTaskIds?: Set<string>;
     onToggleSelectTask?: (taskId: string) => void;
+    onCollectDoneTasks?: (versionId: string) => void;
 }
 
 export default function VersionSection({
@@ -44,6 +45,7 @@ export default function VersionSection({
     isSelectionMode = false,
     selectedTaskIds = new Set(),
     onToggleSelectTask = () => { },
+    onCollectDoneTasks,
 }: VersionSectionProps) {
     const [newTaskContent, setNewTaskContent] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -216,6 +218,14 @@ export default function VersionSection({
                                                 className="w-full text-left px-4 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2"
                                             >
                                                 <Pencil className="w-4 h-4" /> Rename Version
+                                            </button>
+                                        )}
+                                        {onCollectDoneTasks && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onCollectDoneTasks(version.id); setIsMenuOpen(false); }}
+                                                className="w-full text-left px-4 py-2.5 text-xs font-medium text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 flex items-center gap-2"
+                                            >
+                                                <ClipboardList className="w-4 h-4" /> Collect Done Tasks
                                             </button>
                                         )}
                                         <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />

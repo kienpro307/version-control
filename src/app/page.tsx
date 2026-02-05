@@ -336,7 +336,10 @@ export default function Home() {
     const activeTask = tasks.find(t => t.id === active.id);
     const overTask = tasks.find(t => t.id === over.id);
     const isOverContainer = versions.some(v => v.id === over.id) || over.id === 'unassigned';
-    const overVersionId = isOverContainer ? over.id as string : null;
+    // Normalize: 'unassigned' container means null versionId
+    const overVersionId = isOverContainer
+      ? (over.id === 'unassigned' ? null : over.id as string)
+      : null;
 
     if (activeTask) {
       if (overTask && activeTask.id !== overTask.id) {
@@ -346,11 +349,14 @@ export default function Home() {
         } else {
           apiReorderTask(activeTask.id, overTask.position + 1, overTask.versionId);
         }
-      } else if (overVersionId) {
-        // Dropped on container
-        if (activeTask.versionId !== overVersionId) {
-          // Append to end
-          const tasksInVersion = tasks.filter(t => t.versionId === overVersionId);
+      } else if (isOverContainer) {
+        // Dropped on container - compare normalized values
+        const currentVersionId = activeTask.versionId || null;
+        if (currentVersionId !== overVersionId) {
+          // Append to end of target version
+          const tasksInVersion = tasks.filter(t =>
+            overVersionId ? t.versionId === overVersionId : !t.versionId
+          );
           const newPos = tasksInVersion.length > 0 ? Math.max(...tasksInVersion.map(t => t.position)) + 1 : 0;
           apiReorderTask(activeTask.id, newPos, overVersionId);
         }

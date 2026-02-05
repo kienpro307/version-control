@@ -299,32 +299,12 @@ export default function Home() {
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
+    // handleDragOver is for visual feedback only during drag
+    // Actual data mutation happens in handleDragEnd
+    // DO NOT call apiMoveTask here - it causes infinite re-render loop
+    const { over } = event;
     if (!over) return;
-
-    // Find task objects
-    const activeTask = tasks.find(t => t.id === active.id);
-    const overTask = tasks.find(t => t.id === over.id);
-
-    // Check if over is a container (Version ID)
-    const isOverContainer = versions.some(v => v.id === over.id) || over.id === 'unassigned';
-    const overVersionId = isOverContainer ? over.id as string : null;
-
-    if (!activeTask) return;
-
-    // Case 1: Over another Task
-    if (overTask) {
-      if (activeTask.versionId !== overTask.versionId) {
-        // Moving to different version
-        apiMoveTask(activeTask.id, 0, overTask.versionId);
-      }
-    }
-    // Case 2: Over a Version Container (Empty column drop)
-    else if (overVersionId) {
-      if (activeTask.versionId !== overVersionId) {
-        apiMoveTask(activeTask.id, 0, overVersionId);
-      }
-    }
+    // Visual feedback can be handled here if needed
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
